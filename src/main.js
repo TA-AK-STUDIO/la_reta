@@ -5,7 +5,7 @@ import { i18n } from './i18n.js';
 const ASSETS_TO_LOAD = [
   '/assets/background_day.png',
   '/assets/logo.png',
-  '/assets/player.png',
+  '/assets/Jugador.png',
   '/assets/ball.png',
 ];
 
@@ -54,13 +54,11 @@ function initGame(preloadedAssets) {
 
   k.canvas.classList.add('loaded');
 
-  // Sprites
   k.loadSprite('background_day',   '/assets/background_day.png');
   k.loadSprite('background_night', '/assets/background_night.png');
   k.loadSprite('logo',    '/assets/logo.png');
   k.loadSprite('player',  '/assets/Jugador.png');
   k.loadSprite('ball',    '/assets/ball.png');
-  // Powerups
   k.loadSprite('pu_rebote',      '/assets/PowerUps/pu_rebote.png');
   k.loadSprite('pu_precision',   '/assets/PowerUps/pu_precision.png');
   k.loadSprite('pu_perfectzone', '/assets/PowerUps/pu_perfectzone.png');
@@ -75,9 +73,9 @@ function initGame(preloadedAssets) {
 
 // ─── SCENES ──────────────────────────────────────────────────────────────────
 function createScenes(k, preloadedAssets) {
-  const bgData   = preloadedAssets.find(a => a.url.includes('background'));
-  const logoData = preloadedAssets.find(a => a.url.includes('logo'));
-  const playerData = preloadedAssets.find(a => a.url.includes('player'));
+  const bgData     = preloadedAssets.find(a => a.url.includes('background'));
+  const logoData   = preloadedAssets.find(a => a.url.includes('logo'));
+  const playerData = preloadedAssets.find(a => a.url.includes('Jugador'));
 
   // ── Settings (persisted across scenes) ──
   const settings = {
@@ -85,11 +83,11 @@ function createScenes(k, preloadedAssets) {
     musicVolume: 0.4,
     nightMode: false,
     language: 'es',
+    powerupsEnabled: true,   // competitive mode toggle
   };
 
   const getBg = () => settings.nightMode ? 'background_night' : 'background_day';
 
-  // ── i18n helper ──
   const t = (key) => {
     const val = i18n[settings.language][key];
     return typeof val === 'function' ? val : (val || key);
@@ -165,7 +163,6 @@ function createScenes(k, preloadedAssets) {
     gain.gain.value = settings.sfxVolume;
 
     if (type === 'kick') {
-      // Satisfying thud
       osc.type = 'sine';
       osc.frequency.value = 220;
       osc.frequency.exponentialRampToValueAtTime(60, ctx.currentTime + 0.12);
@@ -173,7 +170,6 @@ function createScenes(k, preloadedAssets) {
       gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
       osc.start(); osc.stop(ctx.currentTime + 0.12);
     } else if (type === 'perfect') {
-      // Bright ping
       osc.type = 'triangle';
       osc.frequency.value = 880;
       osc.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.08);
@@ -201,6 +197,14 @@ function createScenes(k, preloadedAssets) {
       osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.1);
       gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
       osc.start(); osc.stop(ctx.currentTime + 0.1);
+    } else if (type === 'rebote') {
+      // Shield bounce — low thud + rising tone
+      osc.type = 'sine';
+      osc.frequency.value = 150;
+      osc.frequency.exponentialRampToValueAtTime(400, ctx.currentTime + 0.18);
+      gain.gain.value = settings.sfxVolume * 0.8;
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.18);
+      osc.start(); osc.stop(ctx.currentTime + 0.18);
     }
   }
 
@@ -253,7 +257,7 @@ function createScenes(k, preloadedAssets) {
     nightBtn.onClick(() => { settings.nightMode = !settings.nightMode; k.go('menu'); });
     nightBtn.onHover(() => k.setCursor('pointer')); nightBtn.onHoverEnd(() => k.setCursor('default'));
 
-    // Music mute (left of night)
+    // Music mute
     const musicBtn = k.add([k.rect(50,50,{radius:25}), k.pos(390,30), k.anchor('center'), k.color(80,60,120), k.outline(2,k.rgb(180,160,220)), k.area(), k.z(100)]);
     const musicLbl = k.add([k.text(settings.musicVolume===0?'🔇':'🎵',{size:26}), k.pos(390,30), k.anchor('center'), k.z(101)]);
     musicBtn.onClick(() => {
@@ -268,45 +272,39 @@ function createScenes(k, preloadedAssets) {
     langBtn.onClick(() => { settings.language = settings.language==='es'?'en':'es'; k.go('menu'); });
     langBtn.onHover(() => k.setCursor('pointer')); langBtn.onHoverEnd(() => k.setCursor('default'));
 
-    // Logo
+    // Logo — ~360px wide on a 480px canvas
     const logoY = 130;
-    if (logoData && logoData.width > 1) {
-      const sc = (480 * 0.78) / logoData.width;
-      k.add([k.sprite('logo'), k.pos(240, logoY), k.anchor('center'), k.scale(sc), k.z(2)]);
-    } else {
-      k.add([k.text('⚽ LA RETA', {size:42}), k.pos(240, logoY), k.anchor('center'), k.color(255,200,0), k.z(2)]);
-    }
+    const logoSc = 360 / 1536;
+    k.add([k.sprite('logo'), k.pos(240, logoY), k.anchor('center'), k.scale(logoSc), k.z(2)]);
 
     // High score
     const hs = loadHighScore();
+    const hsY = logoY + 75;
     if (hs > 0) {
-      k.add([k.text(t('menu_high_score')(hs), {size:18}), k.pos(240, logoY+110), k.anchor('center'), k.color(255,220,80), k.z(2)]);
+      k.add([k.text(t('menu_high_score')(hs), {size:18}), k.pos(240, hsY), k.anchor('center'), k.color(255,220,80), k.z(2)]);
     }
 
     const playBtnY = 770;
     const playBtnH = 70;
+    const howToPlayBtnY = playBtnY - playBtnH - 14;
 
-    // HOW TO PLAY
-    makeBtn(k, t('menu_how_to_play'), 240, playBtnY - playBtnH - 14, 260, 52,
+    makeBtn(k, t('menu_how_to_play'), 240, howToPlayBtnY, 260, 52,
       () => { ensureMusicStarted(); k.go('tutorial'); }, k.rgb(60,140,200));
-
-    // JUGAR
     makeBtn(k, t('menu_play'), 240, playBtnY, 260, playBtnH,
       () => { ensureMusicStarted(); k.go('game'); }, k.rgb(220,60,60));
 
-    // Player character
-    if (playerData && playerData.width > 1) {
-      const maxW = 480 * 0.55;
-      const maxH = playBtnY - playBtnH/2 - (logoY + 110) - 10;
-      const sc = Math.min(maxW / playerData.width, maxH / playerData.height);
-      const charH = playerData.height * sc;
-      const charY = (logoY + 110) + charH/2 + 8;
-      k.add([k.sprite('player'), k.pos(240, charY), k.anchor('center'), k.scale(sc), k.z(3)]);
-    } else {
-      // Fallback: draw a simple player silhouette with shapes
-      k.add([k.circle(30), k.pos(240, 380), k.anchor('center'), k.color(255,180,80), k.z(3)]);
-      k.add([k.rect(50,80,{radius:8}), k.pos(240, 450), k.anchor('center'), k.color(220,60,60), k.z(3)]);
-    }
+    // Player character — sits just above the "Cómo jugar" button, as large as possible
+    // Asset is 1536x1024. Available space: from below logo to above the button.
+    const charBottom = howToPlayBtnY - 30;   // 30px gap above button
+    const charTop    = logoY + 85;            // just below logo
+    const availH = charBottom - charTop;
+    const availW = 480 * 0.88;               // 88% of canvas width
+    const scByH  = availH / 1024;
+    const scByW  = availW / 1536;
+    const charSc = Math.min(scByH, scByW);
+    const charH  = 1024 * charSc;
+    const charY  = charBottom - charH / 2;
+    k.add([k.sprite('player'), k.pos(240, charY), k.anchor('center'), k.scale(charSc), k.z(3)]);
   });
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -331,9 +329,7 @@ function createScenes(k, preloadedAssets) {
         addObj(k.add([k.text(t('tutorial_0_title'),{size:28}), k.pos(240,160), k.anchor('center'), k.color(255,220,80), k.z(3)]));
         addObj(k.add([k.text([t('tutorial_0_line1'),t('tutorial_0_line2'),'',t('tutorial_0_line3')].join('\n'),
           {size:20,width:400,lineSpacing:12,align:'center'}), k.pos(240,430), k.anchor('center'), k.color(230,240,255), k.z(3)]));
-        // Ball icon
-        addObj(k.add([k.circle(40), k.pos(240,300), k.anchor('center'), k.color(255,255,255), k.z(3)]));
-        addObj(k.add([k.text('⚽',{size:50}), k.pos(240,300), k.anchor('center'), k.z(4)]));
+        addObj(k.add([k.sprite('ball'), k.pos(240,290), k.anchor('center'), k.scale(80/1536), k.z(4)]));
       }
       else if (page === 1) {
         addObj(k.add([k.text(t('tutorial_1_title'),{size:28}), k.pos(240,160), k.anchor('center'), k.color(255,220,80), k.z(3)]));
@@ -341,36 +337,70 @@ function createScenes(k, preloadedAssets) {
           {size:18,width:400,lineSpacing:12,align:'center'}), k.pos(240,430), k.anchor('center'), k.color(230,240,255), k.z(3)]));
       }
       else if (page === 2) {
-        addObj(k.add([k.text(t('tutorial_2_title'),{size:28}), k.pos(240,130), k.anchor('center'), k.color(255,220,80), k.z(3)]));
-        const hits = [
-          { label: t('tutorial_2_normal'),  color: k.rgb(200,200,200), x: 100 },
-          { label: t('tutorial_2_good'),    color: k.rgb(100,220,255), x: 240 },
-          { label: t('tutorial_2_perfect'), color: k.rgb(255,220,0),   x: 380 },
-        ];
-        hits.forEach(h => {
-          addObj(k.add([k.circle(36), k.pos(h.x, 340), k.anchor('center'), k.color(h.color), k.z(3)]));
-          addObj(k.add([k.text('⚽',{size:36}), k.pos(h.x, 340), k.anchor('center'), k.z(4)]));
-          addObj(k.add([k.text(h.label,{size:16,width:130,align:'center'}), k.pos(h.x, 410), k.anchor('center'), k.color(h.color), k.z(3)]));
-        });
+        // Layout: título y=110, balón centrado y=330, flechas izq/der a los lados,
+        // flecha abajo llega a y=480, gravedad top-right, hitbox label y=680
+
+        addObj(k.add([k.text(t('tutorial_2_title'),{size:26}), k.pos(240,110), k.anchor('center'), k.color(255,220,80), k.z(3)]));
+
+        const BX = 240, BY = 330;
+        const BR = 52;
+        const BSC = (BR*2) / 1536;
+
+        // Helper: arrow from ball EDGE to tip
+        function addArrow(angleDeg, tipX, tipY, col, label, labelX, labelY) {
+          const rad = angleDeg * Math.PI / 180;
+          const startX = BX + Math.cos(rad) * (BR + 4);
+          const startY = BY + Math.sin(rad) * (BR + 4);
+          const dx = tipX - startX, dy = tipY - startY;
+          const len = Math.sqrt(dx*dx + dy*dy);
+          const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+          addObj(k.add([k.rect(len, 4, {radius:2}), k.pos(startX, startY), k.anchor('left'), k.rotate(angle), k.color(col), k.opacity(0.9), k.z(3)]));
+          addObj(k.add([k.rect(13, 13), k.pos(tipX, tipY), k.anchor('center'), k.rotate(angle+45), k.color(col), k.opacity(0.9), k.z(3)]));
+          addObj(k.add([k.circle(8), k.pos(tipX, tipY), k.anchor('center'), k.color(255,255,255), k.opacity(0.9), k.z(3)]));
+          if (label) addObj(k.add([k.text(label,{size:13,width:110,align:'center'}), k.pos(labelX, labelY), k.anchor('center'), k.color(col), k.z(3)]));
+        }
+
+        // Roja: sale borde inferior-DERECHO → va arriba-IZQUIERDA  \
+        addArrow(45, BX-110, BY-110, k.rgb(255,100,100), t('tutorial_2_left'), BX-148, BY-138);
+
+        // Azul: sale borde inferior-IZQUIERDO → va arriba-DERECHA  /
+        addArrow(135, BX+110, BY-110, k.rgb(100,200,255), t('tutorial_2_right'), BX+148, BY-138);
+
+        // Verde → recto arriba |
+        addArrow(90, BX, BY+160, k.rgb(120,255,120), t('tutorial_2_below'), 240, 545);
+
+        // Gravedad — centrado arriba
+        addObj(k.add([k.text('↓ ' + t('tutorial_2_gravity'),{size:13,width:100,align:'center'}), k.pos(240, 180), k.anchor('center'), k.color(255,180,60), k.opacity(0.9), k.z(3)]));
+
+        // Ball on top (z:6)
+        addObj(k.add([k.sprite('ball'), k.pos(BX, BY), k.anchor('center'), k.scale(BSC), k.z(6)]));
+
+        // Hitbox ring
+        addObj(k.add([k.circle(BR+18), k.pos(BX, BY), k.anchor('center'), k.color(255,220,80), k.opacity(0), k.outline(2, k.rgb(255,220,80)), k.z(7)]));
+
+        // Hitbox label — bien abajo, zona libre
+        addObj(k.add([k.text(t('tutorial_2_hitbox'),{size:14,width:340,align:'center'}), k.pos(240, 680), k.anchor('center'), k.color(255,255,255), k.opacity(0.7), k.z(3)]));
       }
       else if (page === 3) {
+        // Powerups page — use actual sprites
         addObj(k.add([k.text(t('tutorial_3_title'),{size:28}), k.pos(240,100), k.anchor('center'), k.color(255,220,80), k.z(3)]));
         const pups = [
-          { emoji:'🛡', label:t('tutorial_3_rebote'),      color:k.rgb(100,200,255) },
-          { emoji:'🎯', label:t('tutorial_3_precision'),   color:k.rgb(100,255,180) },
-          { emoji:'⭐', label:t('tutorial_3_perfectzone'), color:k.rgb(255,220,0)   },
-          { emoji:'💰', label:t('tutorial_3_doble'),       color:k.rgb(255,140,0)   },
-          { emoji:'🔥', label:t('tutorial_3_fuego'),       color:k.rgb(255,80,80)   },
+          { sprite:'pu_rebote',      label:t('tutorial_3_rebote'),      color:k.rgb(100,200,255) },
+          { sprite:'pu_precision',   label:t('tutorial_3_precision'),   color:k.rgb(100,255,180) },
+          { sprite:'pu_perfectzone', label:t('tutorial_3_perfectzone'), color:k.rgb(255,220,0)   },
+          { sprite:'pu_doble',       label:t('tutorial_3_doble'),       color:k.rgb(255,140,0)   },
+          { sprite:'pu_fuego',       label:t('tutorial_3_fuego'),       color:k.rgb(255,80,80)   },
         ];
         const rows = [[0,1,2],[3,4]];
         rows.forEach((row, ri) => {
-          const y = 280 + ri * 180;
+          const y = 270 + ri * 200;
           row.forEach((idx, ci) => {
             const x = 240 - (row.length-1)*80 + ci*160;
             const p = pups[idx];
-            addObj(k.add([k.circle(36), k.pos(x,y), k.anchor('center'), k.color(p.color), k.opacity(0.3), k.z(3)]));
-            addObj(k.add([k.text(p.emoji,{size:40}), k.pos(x,y), k.anchor('center'), k.z(4)]));
-            addObj(k.add([k.text(p.label,{size:13,width:140,align:'center'}), k.pos(x,y+55), k.anchor('center'), k.color(p.color), k.z(3)]));
+            // Sprite icon: 1536x1024, target ~60px tall
+            const TU_PU_SCALE = 60 / 1024;
+            addObj(k.add([k.sprite(p.sprite), k.pos(x, y), k.anchor('center'), k.scale(TU_PU_SCALE), k.z(4)]));
+            addObj(k.add([k.text(p.label,{size:13,width:140,align:'center'}), k.pos(x, y+52), k.anchor('center'), k.color(p.color), k.z(3)]));
           });
         });
       }
@@ -396,7 +426,7 @@ function createScenes(k, preloadedAssets) {
   // SCENE: GAME
   // ══════════════════════════════════════════════════════════════════════════
   k.scene('game', () => {
-    k.setGravity(0); // We handle gravity manually for full control
+    k.setGravity(0);
     addBg(k);
 
     // ── Game State ──
@@ -411,13 +441,12 @@ function createScenes(k, preloadedAssets) {
     let ballY = 300;
     let ballVX = 0;
     let ballVY = 0;
-    let ballSpin = 0;       // visual rotation speed
-    let ballRotation = 0;   // current rotation degrees
-    const BALL_RADIUS = 22;
-    const GRAVITY = 900;    // px/s²
-    const GROUND_Y = 854 - 60; // where ball "dies"
-
-    // Powerup state
+    let ballSpin = 0;
+    let ballRotation = 0;
+    const BALL_RADIUS = 55;
+    const BALL_SCALE = 110 / 1536;
+    const GRAVITY = 980;
+    const GROUND_Y = 854 - 50;
     let hasRebote = false;
     let precisionActive = false;
     let precisionTimer = 0;
@@ -426,48 +455,22 @@ function createScenes(k, preloadedAssets) {
     let dobleActive = false;
     let fuegoActive = false;
 
-    // Powerup entities
     const activePowerups = [];
-    let powerupSpawnTimer = 8; // first spawn at 8s
+    let powerupSpawnTimer = settings.powerupsEnabled ? 8 : 999999;
 
-    // Difficulty
-    function diffMult() { return 1 + elapsed * 0.012; }
+    function diffMult() { return 1 + elapsed * 0.01; }
 
-    // ── Draw ball (no sprite fallback) ──
-    // We use a kaplay object for the ball
-    const ballObj = k.add([
-      k.circle(BALL_RADIUS),
-      k.pos(ballX, ballY),
-      k.anchor('center'),
-      k.color(255, 255, 255),
-      k.z(20),
-    ]);
-    // Ball inner detail (pentagon pattern)
-    const ballDetail = k.add([
-      k.text('⚽', { size: BALL_RADIUS * 2.2 }),
-      k.pos(ballX, ballY),
-      k.anchor('center'),
-      k.z(21),
-    ]);
-
-    // ── Player character ──
-    const playerObj = k.add([
-      k.text('🧍', { size: 80 }),
-      k.pos(240, GROUND_Y - 20),
-      k.anchor('center'),
-      k.z(15),
-    ]);
+    // ── Ball ──
+    const ballObj = k.add([k.sprite('ball'), k.pos(ballX, ballY), k.anchor('center'), k.scale(BALL_SCALE), k.z(20)]);
 
     // ── HUD ──
     k.add([k.rect(220,80,{radius:12}), k.pos(10,10), k.color(0,0,0), k.opacity(0.65), k.z(99)]);
     const scoreText = k.add([k.text(`${t('game_score')}: 0`,{size:22}), k.pos(18,18), k.color(255,220,80), k.z(100)]);
     const comboText = k.add([k.text('',{size:20}), k.pos(18,48), k.color(255,140,0), k.z(100)]);
 
-    // Pause button
     const pauseBtn = k.add([k.rect(50,50,{radius:12}), k.pos(450,30), k.anchor('center'), k.color(80,60,120), k.outline(2,k.rgb(180,160,220)), k.area(), k.z(100)]);
     k.add([k.text('⏸',{size:28}), k.pos(450,30), k.anchor('center'), k.z(101)]);
 
-    // Settings button
     const settingsBtn = k.add([k.rect(50,50,{radius:12}), k.pos(390,30), k.anchor('center'), k.color(80,60,120), k.outline(2,k.rgb(180,160,220)), k.area(), k.z(100)]);
     k.add([k.text('⚙',{size:28}), k.pos(390,30), k.anchor('center'), k.z(101)]);
 
@@ -484,127 +487,99 @@ function createScenes(k, preloadedAssets) {
       toastTimer = 0;
     }
 
-    // ── Hit feedback label ──
-    function showHitLabel(type, x, y) {
-      const labels = { normal: { text: t('hit_normal'), color: k.rgb(200,200,200) }, good: { text: t('hit_good'), color: k.rgb(100,220,255) }, perfect: { text: t('hit_perfect'), color: k.rgb(255,220,0) } };
-      const l = labels[type] || labels.normal;
-      const lbl = k.add([k.text(l.text,{size:type==='perfect'?28:22}), k.pos(x, y-30), k.anchor('center'), k.color(l.color), k.opacity(1), k.z(150), { t:0 }]);
-      lbl.onUpdate(() => {
-        lbl.t += k.dt();
-        lbl.pos.y -= 60 * k.dt();
-        if (lbl.t > 0.7) lbl.opacity = Math.max(0, lbl.opacity - 3*k.dt());
-        if (lbl.t > 1.0) k.destroy(lbl);
-      });
-    }
-
-    // ── Particles ──
     function spawnParticles(x, y, color) {
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < 12; i++) {
         k.add([
-          k.circle(k.rand(4,8)),
+          k.circle(k.rand(4,9)),
           k.pos(x, y),
           k.anchor('center'),
           k.color(color || k.rgb(255,220,0)),
           k.opacity(1),
-          k.move(k.rand(0,360), k.rand(100,280)),
-          k.lifespan(0.5, { fade: 0.25 }),
+          k.move(k.rand(0,360), k.rand(120,320)),
+          k.lifespan(0.6, { fade: 0.3 }),
           k.z(200),
         ]);
       }
     }
 
     // ── Kick logic ──
-    function classifyHit(tapX, tapY) {
-      // Distance from ball center determines hit quality
-      const dx = tapX - ballX;
-      const dy = tapY - ballY;
-      const dist = Math.sqrt(dx*dx + dy*dy);
-      if (dist < 30) return 'perfect';
-      if (dist < 70) return 'good';
-      return 'normal';
-    }
-
     function kickBall(tapX, tapY) {
       if (gameOver || paused) return;
 
-      const hitType = (perfectZoneActive) ? 'perfect' : classifyHit(tapX, tapY);
-
-      // Direction: from tap toward ball, then upward
+      // Direction vector from tap to ball
       let dx = ballX - tapX;
       let dy = ballY - tapY;
       const len = Math.sqrt(dx*dx + dy*dy) || 1;
       dx /= len; dy /= len;
 
-      // Base kick force
-      const baseForce = 700 + elapsed * 1.5 * diffMult();
-      const forceMult = hitType === 'perfect' ? 1.1 : hitType === 'good' ? 1.0 : 0.9;
-      const force = Math.min(baseForce * forceMult, 1100);
+      const offsetX = tapX - ballX;
+      const offsetY = tapY - ballY;
 
-      // Ensure ball goes upward
-      const upBias = -0.7;
-      dy = Math.min(dy, upBias);
-      const norm = Math.sqrt(dx*dx + dy*dy);
-      ballVX = (dx/norm) * force;
-      ballVY = (dy/norm) * force;
+      const baseForce = 680 + elapsed * 2 * diffMult();
+      const force = Math.min(baseForce, 1200);
 
-      // Spin: based on horizontal offset from ball center
-      const spinFactor = precisionActive ? 0.3 : 1.0;
-      ballSpin = ((tapX - ballX) / BALL_RADIUS) * 180 * spinFactor;
+      // Vertical: tap below ball = more upward force
+      const verticalBias = offsetY > 0 ? 1.2 : 0.9;
+      const upwardForce = force * verticalBias;
 
-      // Score
-      const basePoints = hitType === 'perfect' ? 3 : hitType === 'good' ? 2 : 1;
+      ballVX += dx * force * 0.6 + offsetX * 2.5;
+      ballVY = -upwardForce;
+
+      const spinFactor = precisionActive ? 0.25 : 1.0;
+      ballSpin = (offsetX / BALL_RADIUS) * 220 * spinFactor;
+
+      // Score: +1 per touch, combo multiplier
       combo++;
-      const comboMult = fuegoActive ? Math.min(combo * 0.5, 5) : Math.min(1 + (combo - 1) * 0.1, 3);
+      const comboMult = fuegoActive ? Math.min(combo * 0.5, 5) : Math.min(1 + (combo - 1) * 0.12, 3);
       const dobleBonus = dobleActive ? 2 : 1;
-      const earned = Math.round(basePoints * comboMult * dobleBonus);
+      const earned = Math.round(1 * comboMult * dobleBonus);
       score += earned;
 
       scoreText.text = `${t('game_score')}: ${score}`;
       comboText.text = combo > 1 ? `${t('game_combo')} x${combo}` : '';
 
-      showHitLabel(hitType, ballX, ballY);
-      if (hitType === 'perfect') {
-        spawnParticles(ballX, ballY, k.rgb(255,220,0));
-        playSFX('perfect');
-      } else if (hitType === 'good') {
-        playSFX('good');
-      } else {
-        playSFX('kick');
-      }
+      playSFX('kick');
 
-      if (combo > 1) {
+      if (combo > 1 && combo % 3 === 0) {
         showToast(t('toast_combo')(combo), k.rgb(255,140,0));
-        if (combo % 5 === 0) playSFX('combo');
+        playSFX('combo');
       }
-
-      // Fuego: rapid combo growth but full reset on fail
-      // (handled in endGame)
     }
 
     // ── Powerup spawn ──
     const POWERUP_DEFS = [
-      { key: 'rebote',      emoji: '🛡', color: k.rgb(100,200,255) },
-      { key: 'precision',   emoji: '🎯', color: k.rgb(100,255,180) },
-      { key: 'perfectzone', emoji: '⭐', color: k.rgb(255,220,0)   },
-      { key: 'doble',       emoji: '💰', color: k.rgb(255,140,0)   },
-      { key: 'fuego',       emoji: '🔥', color: k.rgb(255,80,80)   },
+      { key: 'rebote',      sprite: 'pu_rebote',      color: k.rgb(100,200,255), weight: 0.5 },  // less frequent
+      { key: 'precision',   sprite: 'pu_precision',   color: k.rgb(100,255,180), weight: 1.0 },
+      { key: 'perfectzone', sprite: 'pu_perfectzone', color: k.rgb(255,220,0),   weight: 1.0 },
+      { key: 'doble',       sprite: 'pu_doble',       color: k.rgb(255,140,0),   weight: 1.0 },
+      { key: 'fuego',       sprite: 'pu_fuego',       color: k.rgb(255,80,80),   weight: 1.0 },
     ];
 
     function spawnPowerup() {
-      const def = POWERUP_DEFS[Math.floor(Math.random() * POWERUP_DEFS.length)];
-      const x = k.rand(60, 420);
-      const y = k.rand(150, 500);
-      const lifetime = 3; // seconds visible
+      if (!settings.powerupsEnabled) return;
+      // Weighted random
+      const totalWeight = POWERUP_DEFS.reduce((sum, p) => sum + p.weight, 0);
+      let rand = Math.random() * totalWeight;
+      let def = POWERUP_DEFS[0];
+      for (const p of POWERUP_DEFS) {
+        rand -= p.weight;
+        if (rand <= 0) { def = p; break; }
+      }
 
-      const bg = k.add([k.circle(28), k.pos(x,y), k.anchor('center'), k.color(def.color), k.opacity(0.35), k.z(30)]);
-      const icon = k.add([k.text(def.emoji,{size:36}), k.pos(x,y), k.anchor('center'), k.z(31)]);
-      // Timer ring (shrinks)
-      const ring = k.add([k.circle(28), k.pos(x,y), k.anchor('center'), k.color(def.color), k.opacity(0.8), k.z(29), { t:0, lifetime }]);
+      const x = k.rand(70, 410);
+      const y = k.rand(160, 520);
+      const lifetime = 3;
+
+      // Powerup sprite: 1536x1024, target ~56px tall on screen
+      const PU_SCALE = 56 / 1024;
+      const bg = k.add([k.circle(36), k.pos(x,y), k.anchor('center'), k.color(def.color), k.opacity(0.25), k.z(30)]);
+      const icon = k.add([k.sprite(def.sprite), k.pos(x,y), k.anchor('center'), k.scale(PU_SCALE), k.z(31)]);
+      const ring = k.add([k.circle(36), k.pos(x,y), k.anchor('center'), k.color(def.color), k.opacity(0.7), k.z(29), { t:0, lifetime }]);
 
       ring.onUpdate(() => {
         ring.t += k.dt();
         const progress = ring.t / ring.lifetime;
-        ring.radius = 28 * (1 - progress);
+        ring.radius = 36 * (1 - progress);
         if (ring.t >= ring.lifetime) {
           k.destroy(bg); k.destroy(icon); k.destroy(ring);
           const idx = activePowerups.findIndex(p => p.ring === ring);
@@ -621,8 +596,7 @@ function createScenes(k, preloadedAssets) {
         if (!p.alive) continue;
         const dx = ballX - p.x;
         const dy = ballY - p.y;
-        if (Math.sqrt(dx*dx + dy*dy) < BALL_RADIUS + 28) {
-          // Collect
+        if (Math.sqrt(dx*dx + dy*dy) < BALL_RADIUS + 36) {
           p.alive = false;
           try { k.destroy(p.bg); k.destroy(p.icon); k.destroy(p.ring); } catch {}
           activePowerups.splice(i, 1);
@@ -647,16 +621,14 @@ function createScenes(k, preloadedAssets) {
       } else if (key === 'doble') {
         dobleActive = true;
         showToast(t('toast_doble'), k.rgb(255,140,0));
-        // Increase ball speed
-        ballVX *= 1.3;
-        ballVY *= 1.3;
+        ballVX *= 1.25;
+        ballVY *= 1.25;
       } else if (key === 'fuego') {
         fuegoActive = true;
         showToast(t('toast_fuego'), k.rgb(255,80,80));
       }
     }
 
-    // ── End game ──
     function endGame() {
       if (gameOver) return;
       gameOver = true;
@@ -671,7 +643,6 @@ function createScenes(k, preloadedAssets) {
     k.onMouseDown((btn) => {
       if (btn !== 0) return;
       const pos = k.mousePos();
-      // Check if clicking HUD buttons — skip
       if (pos.y < 80 && (pos.x > 340 || pos.x < 100)) return;
       kickBall(pos.x, pos.y);
     });
@@ -687,7 +658,6 @@ function createScenes(k, preloadedAssets) {
       const dt = k.dt();
       elapsed += dt;
 
-      // Toast fade
       if (toastTxt.opacity > 0) {
         toastTimer += dt;
         if (toastTimer > 1.2) {
@@ -696,60 +666,52 @@ function createScenes(k, preloadedAssets) {
         }
       }
 
-      // Powerup timers
       if (precisionTimer > 0) { precisionTimer -= dt; if (precisionTimer <= 0) { precisionActive = false; precisionTimer = 0; } }
       if (perfectZoneTimer > 0) { perfectZoneTimer -= dt; if (perfectZoneTimer <= 0) { perfectZoneActive = false; perfectZoneTimer = 0; } }
 
-      // Powerup spawn
-      powerupSpawnTimer -= dt;
-      if (powerupSpawnTimer <= 0) {
-        powerupSpawnTimer = k.rand(8, 14);
-        spawnPowerup();
+      if (settings.powerupsEnabled) {
+        powerupSpawnTimer -= dt;
+        if (powerupSpawnTimer <= 0) {
+          powerupSpawnTimer = k.rand(9, 15);
+          spawnPowerup();
+        }
       }
 
       // Ball physics
       ballVY += GRAVITY * dt;
 
-      // Increasing instability over time
-      const instability = Math.min(elapsed * 0.4, 60);
+      // Instability
+      const instability = Math.min(elapsed * 0.5, 70);
       ballVX += (Math.random() - 0.5) * instability * dt;
 
       ballX += ballVX * dt;
       ballY += ballVY * dt;
 
       // Wall bounce
-      if (ballX < BALL_RADIUS) { ballX = BALL_RADIUS; ballVX = Math.abs(ballVX) * 0.7; }
-      if (ballX > 480 - BALL_RADIUS) { ballX = 480 - BALL_RADIUS; ballVX = -Math.abs(ballVX) * 0.7; }
+      if (ballX < BALL_RADIUS) { ballX = BALL_RADIUS; ballVX = Math.abs(ballVX) * 0.65; }
+      if (ballX > 480 - BALL_RADIUS) { ballX = 480 - BALL_RADIUS; ballVX = -Math.abs(ballVX) * 0.65; }
       // Ceiling bounce
-      if (ballY < BALL_RADIUS + 80) { ballY = BALL_RADIUS + 80; ballVY = Math.abs(ballVY) * 0.6; }
+      if (ballY < BALL_RADIUS + 80) { ballY = BALL_RADIUS + 80; ballVY = Math.abs(ballVY) * 0.55; }
 
       // Spin
       ballRotation += ballSpin * dt;
-      ballSpin *= 0.97; // decay
+      ballSpin *= 0.96;
 
-      // Update ball visuals
       ballObj.pos.x = ballX;
       ballObj.pos.y = ballY;
-      ballDetail.pos.x = ballX;
-      ballDetail.pos.y = ballY;
-      ballDetail.angle = ballRotation;
+      ballObj.angle = ballRotation;
 
-      // Player leans toward ball
-      playerObj.pos.x = 240 + (ballX - 240) * 0.15;
-
-      // Check powerup collision
       checkPowerupCollision();
 
       // Ground check
       if (ballY + BALL_RADIUS >= GROUND_Y) {
         if (hasRebote) {
           hasRebote = false;
-          ballVY = -600;
+          ballVY = -650;
           ballY = GROUND_Y - BALL_RADIUS - 1;
           showToast(t('toast_saved'), k.rgb(100,200,255));
-          playSFX('powerup');
+          playSFX('rebote');
         } else {
-          // FAIL
           if (fuegoActive) { combo = 0; fuegoActive = false; }
           endGame();
         }
@@ -784,8 +746,8 @@ function createScenes(k, preloadedAssets) {
       const add = (o) => { objs.push(o); return o; };
       const close = () => { objs.forEach(o => { try { k.destroy(o); } catch {} }); paused = false; };
 
-      add(k.add([k.rect(340,380,{radius:18}), k.pos(240,427), k.anchor('center'), k.color(26,10,46), k.opacity(0.96), k.z(200)]));
-      add(k.add([k.text(t('settings_title'),{size:22}), k.pos(240,270), k.anchor('center'), k.color(255,255,255), k.z(201)]));
+      add(k.add([k.rect(340,440,{radius:18}), k.pos(240,427), k.anchor('center'), k.color(26,10,46), k.opacity(0.96), k.z(200)]));
+      add(k.add([k.text(t('settings_title'),{size:22}), k.pos(240,240), k.anchor('center'), k.color(255,255,255), k.z(201)]));
 
       function volRow(label, getVal, onDown, onUp, onMute, y) {
         add(k.add([k.text(label,{size:16}), k.pos(90,y), k.anchor('center'), k.color(200,180,255), k.z(201)]));
@@ -801,16 +763,28 @@ function createScenes(k, preloadedAssets) {
         bmute.onClick(() => { onMute(); valLbl.text=`${Math.round(getVal()*100)}%`; }); bmute.onHover(()=>k.setCursor('pointer')); bmute.onHoverEnd(()=>k.setCursor('default'));
       }
 
-      volRow('SFX', ()=>settings.sfxVolume, ()=>{settings.sfxVolume=Math.max(0,settings.sfxVolume-0.1);}, ()=>{settings.sfxVolume=Math.min(1,settings.sfxVolume+0.1);}, ()=>{settings.sfxVolume=0;}, 350);
-      volRow('🎵 Música', ()=>settings.musicVolume, ()=>setMusicVolume(settings.musicVolume-0.1), ()=>setMusicVolume(settings.musicVolume+0.1), ()=>setMusicVolume(0), 410);
+      volRow('SFX', ()=>settings.sfxVolume, ()=>{settings.sfxVolume=Math.max(0,settings.sfxVolume-0.1);}, ()=>{settings.sfxVolume=Math.min(1,settings.sfxVolume+0.1);}, ()=>{settings.sfxVolume=0;}, 320);
+      volRow('🎵 Música', ()=>settings.musicVolume, ()=>setMusicVolume(settings.musicVolume-0.1), ()=>setMusicVolume(settings.musicVolume+0.1), ()=>setMusicVolume(0), 380);
 
-      const cb = add(k.add([k.rect(160,44,{radius:12}), k.pos(240,490), k.anchor('center'), k.color(220,60,60), k.outline(3,k.rgb(255,220,80)), k.area(), k.z(201)]));
-      add(k.add([k.text(t('tutorial_back'),{size:20}), k.pos(240,490), k.anchor('center'), k.color(255,255,255), k.z(202)]));
+      // Powerups toggle
+      add(k.add([k.text('Powerups',{size:16}), k.pos(90,440), k.anchor('center'), k.color(200,180,255), k.z(201)]));
+      const puColor = settings.powerupsEnabled ? k.rgb(120,220,160) : k.rgb(255,120,120);
+      const puLbl = add(k.add([k.text(settings.powerupsEnabled?'ON':'OFF',{size:16}), k.pos(175,440), k.anchor('center'), k.color(puColor.r,puColor.g,puColor.b), k.z(201)]));
+      const puToggle = add(k.add([k.rect(80,36,{radius:8}), k.pos(264,440), k.anchor('center'), k.color(80,60,120), k.area(), k.z(201)]));
+      add(k.add([k.text('Toggle',{size:16}), k.pos(264,440), k.anchor('center'), k.color(255,255,255), k.z(202)]));
+      puToggle.onClick(() => {
+        settings.powerupsEnabled = !settings.powerupsEnabled;
+        puLbl.text = settings.powerupsEnabled ? 'ON' : 'OFF';
+        puLbl.color = settings.powerupsEnabled ? k.rgb(120,220,160) : k.rgb(255,120,120);
+      });
+      puToggle.onHover(()=>k.setCursor('pointer')); puToggle.onHoverEnd(()=>k.setCursor('default'));
+
+      const cb = add(k.add([k.rect(160,44,{radius:12}), k.pos(240,550), k.anchor('center'), k.color(220,60,60), k.outline(3,k.rgb(255,220,80)), k.area(), k.z(201)]));
+      add(k.add([k.text(t('tutorial_back'),{size:20}), k.pos(240,550), k.anchor('center'), k.color(255,255,255), k.z(202)]));
       cb.onClick(close); cb.onHover(()=>k.setCursor('pointer')); cb.onHoverEnd(()=>k.setCursor('default'));
     });
     settingsBtn.onHover(()=>k.setCursor('pointer')); settingsBtn.onHoverEnd(()=>k.setCursor('default'));
 
-    // Auto-pause on tab hide
     const onVis = () => { if (document.hidden && !paused) paused = true; };
     document.addEventListener('visibilitychange', onVis);
     k.onSceneLeave(() => document.removeEventListener('visibilitychange', onVis));
@@ -832,7 +806,6 @@ function createScenes(k, preloadedAssets) {
     k.add([k.text(t('gameover_score')(finalScore),{size:26}), k.pos(240,200), k.anchor('center'), k.color(255,255,255), k.z(2)]);
     k.add([k.text(t('gameover_high_score')(highScore),{size:20}), k.pos(240,240), k.anchor('center'), k.color(255,220,80), k.z(2)]);
 
-    // Name input
     k.add([k.text(t('gameover_save_prompt'),{size:18}), k.pos(240,295), k.anchor('center'), k.color(255,220,80), k.z(2)]);
     let playerName = '';
     let saved = false;
