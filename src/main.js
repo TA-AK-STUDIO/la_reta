@@ -690,8 +690,14 @@ function createScenes(k, preloadedAssets) {
       k.wait(0.6, () => k.go('gameover', { score, highScore: loadHighScore() }));
     }
 
-    // ── Input — usa onClick que funciona con mouse y touch ──
+    // ── Input ──
+    // En móvil, touchToMouse hace que onClick también se dispare con touch.
+    // Usamos solo onTouchStart para móvil y onClick solo para mouse (desktop).
+    let lastTouchTime = 0;
+
     k.onClick(() => {
+      // Si hubo un touch reciente (<100ms), ignorar — ya lo manejó onTouchStart
+      if (Date.now() - lastTouchTime < 100) return;
       if (paused || modalOpen) return;
       const pos = k.mousePos();
       if (pos.y < 80 && pos.x > 330) return;
@@ -699,6 +705,7 @@ function createScenes(k, preloadedAssets) {
     });
 
     k.onTouchStart((id, pos) => {
+      lastTouchTime = Date.now();
       if (paused || modalOpen) return;
       if (pos.y < 80 && pos.x > 330) return;
       kickBall(pos.x, pos.y);
