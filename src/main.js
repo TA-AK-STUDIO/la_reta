@@ -272,6 +272,13 @@ function createScenes(k, preloadedAssets) {
     langBtn.onClick(() => { settings.language = settings.language==='es'?'en':'es'; k.go('menu'); });
     langBtn.onHover(() => k.setCursor('pointer')); langBtn.onHoverEnd(() => k.setCursor('default'));
 
+    // Competitive mode toggle (⚡ = powerups ON, 🏆 = competitive/no powerups)
+    const compColor = () => settings.powerupsEnabled ? k.rgb(80,60,120) : k.rgb(180,120,0);
+    const compBtn = k.add([k.rect(50,50,{radius:25}), k.pos(120,30), k.anchor('center'), k.color(compColor()), k.outline(2,k.rgb(180,160,220)), k.area(), k.z(100)]);
+    k.add([k.text(settings.powerupsEnabled ? '⚡' : '🏆', {size:26}), k.pos(120,30), k.anchor('center'), k.z(101)]);
+    compBtn.onClick(() => { settings.powerupsEnabled = !settings.powerupsEnabled; k.go('menu'); });
+    compBtn.onHover(() => k.setCursor('pointer')); compBtn.onHoverEnd(() => k.setCursor('default'));
+
     // Logo — ~360px wide on a 480px canvas
     const logoY = 130;
     const logoSc = 360 / 1536;
@@ -503,32 +510,36 @@ function createScenes(k, preloadedAssets) {
     }
 
     // ── Kick logic ──
+    // Solo válido si el toque está dentro del radio de hitbox del balón
+    const KICK_HITBOX = BALL_RADIUS * 2.2; // área generosa alrededor del balón
+
     function kickBall(tapX, tapY) {
       if (gameOver || paused) return;
 
-      // Direction vector from tap to ball
-      let dx = ballX - tapX;
-      let dy = ballY - tapY;
-      const len = Math.sqrt(dx*dx + dy*dy) || 1;
-      dx /= len; dy /= len;
+      // HITBOX CHECK — solo cuenta si tocas cerca del balón
+      const distToBall = Math.sqrt((tapX - ballX) ** 2 + (tapY - ballY) ** 2);
+      if (distToBall > KICK_HITBOX) return;
 
-      const offsetX = tapX - ballX;
-      const offsetY = tapY - ballY;
+      const offsetX = tapX - ballX;  // negativo = toque a la izquierda del balón
+      const offsetY = tapY - ballY;  // positivo = toque abajo del balón
 
-      const baseForce = 680 + elapsed * 2 * diffMult();
-      const force = Math.min(baseForce, 1200);
+      const baseForce = 680 + elapsed * 1.5 * diffMult();
+      const force = Math.min(baseForce, 1100);
 
-      // Vertical: tap below ball = more upward force
-      const verticalBias = offsetY > 0 ? 1.2 : 0.9;
-      const upwardForce = force * verticalBias;
+      // Dirección: opuesta al offset (patada real)
+      // offsetX negativo (toque izq) → balón va a la derecha
+      const kickVX = -offsetX * 6;  // acotado porque offsetX max = KICK_HITBOX
+      // offsetY positivo (toque abajo) → más fuerza hacia arriba
+      const verticalBias = offsetY > 0 ? 1.25 : 0.85;
+      const kickVY = -force * verticalBias;
 
-      ballVX += dx * force * 0.6 + offsetX * 2.5;
-      ballVY = -upwardForce;
+      ballVX = kickVX;
+      ballVY = kickVY;
 
       const spinFactor = precisionActive ? 0.25 : 1.0;
-      ballSpin = (offsetX / BALL_RADIUS) * 220 * spinFactor;
+      ballSpin = (offsetX / BALL_RADIUS) * 200 * spinFactor;
 
-      // Score: +1 per touch, combo multiplier
+      // Score
       combo++;
       const comboMult = fuegoActive ? Math.min(combo * 0.5, 5) : Math.min(1 + (combo - 1) * 0.12, 3);
       const dobleBonus = dobleActive ? 2 : 1;
@@ -538,6 +549,7 @@ function createScenes(k, preloadedAssets) {
       scoreText.text = `${t('game_score')}: ${score}`;
       comboText.text = combo > 1 ? `${t('game_combo')} x${combo}` : '';
 
+      spawnParticles(ballX, ballY, k.rgb(255,220,80));
       playSFX('kick');
 
       if (combo > 1 && combo % 3 === 0) {
@@ -642,12 +654,14 @@ function createScenes(k, preloadedAssets) {
     // ── Input ──
     k.onMouseDown((btn) => {
       if (btn !== 0) return;
+      if (paused || modalOpen) return;
       const pos = k.mousePos();
       if (pos.y < 80 && (pos.x > 340 || pos.x < 100)) return;
       kickBall(pos.x, pos.y);
     });
 
     k.onTouchStart((id, pos) => {
+      if (paused || modalOpen) return;
       if (pos.y < 80 && (pos.x > 340 || pos.x < 100)) return;
       kickBall(pos.x, pos.y);
     });
@@ -680,18 +694,21 @@ function createScenes(k, preloadedAssets) {
       // Ball physics
       ballVY += GRAVITY * dt;
 
-      // Instability
-      const instability = Math.min(elapsed * 0.5, 70);
+      // Instability — crece con el tiempo
+      const instability = Math.min(elapsed * 0.4, 50);
       ballVX += (Math.random() - 0.5) * instability * dt;
+
+      // Cap horizontal velocity so ball never flies off screen
+      ballVX = Math.max(-600, Math.min(600, ballVX));
 
       ballX += ballVX * dt;
       ballY += ballVY * dt;
 
-      // Wall bounce
-      if (ballX < BALL_RADIUS) { ballX = BALL_RADIUS; ballVX = Math.abs(ballVX) * 0.65; }
-      if (ballX > 480 - BALL_RADIUS) { ballX = 480 - BALL_RADIUS; ballVX = -Math.abs(ballVX) * 0.65; }
-      // Ceiling bounce
-      if (ballY < BALL_RADIUS + 80) { ballY = BALL_RADIUS + 80; ballVY = Math.abs(ballVY) * 0.55; }
+      // Wall bounce — balón siempre dentro de pantalla
+      if (ballX < BALL_RADIUS)           { ballX = BALL_RADIUS;           ballVX =  Math.abs(ballVX) * 0.65; }
+      if (ballX > 480 - BALL_RADIUS)     { ballX = 480 - BALL_RADIUS;     ballVX = -Math.abs(ballVX) * 0.65; }
+      if (ballY < BALL_RADIUS + 80)      { ballY = BALL_RADIUS + 80;      ballVY =  Math.abs(ballVY) * 0.55; } // techo = HUD
+      if (ballY > GROUND_Y - BALL_RADIUS){ ballY = GROUND_Y - BALL_RADIUS; } // suelo — lo maneja ground check
 
       // Spin
       ballRotation += ballSpin * dt;
@@ -719,14 +736,18 @@ function createScenes(k, preloadedAssets) {
     });
 
     // ── Pause ──
+    let modalOpen = false;
+
     pauseBtn.onClick(() => {
+      if (modalOpen) return; // settings ya abierto
       if (paused) { paused = false; return; }
       paused = true;
+      modalOpen = true;
       const objs = [];
       const add = (o) => { objs.push(o); return o; };
-      const close = () => { objs.forEach(o => { try { k.destroy(o); } catch {} }); paused = false; };
+      const close = () => { objs.forEach(o => { try { k.destroy(o); } catch {} }); paused = false; modalOpen = false; };
 
-      add(k.add([k.rect(360,260,{radius:18}), k.pos(240,427), k.anchor('center'), k.color(26,10,46), k.opacity(0.96), k.z(200)]));
+      add(k.add([k.rect(360,280,{radius:18}), k.pos(240,427), k.anchor('center'), k.color(26,10,46), k.opacity(0.96), k.z(200)]));
       add(k.add([k.text(t('game_pause'),{size:32}), k.pos(240,340), k.anchor('center'), k.color(255,255,255), k.z(201)]));
 
       const cont = add(k.add([k.rect(240,52,{radius:14}), k.pos(240,420), k.anchor('center'), k.color(60,180,100), k.outline(3,k.rgb(120,220,160)), k.area(), k.z(201)]));
@@ -741,46 +762,35 @@ function createScenes(k, preloadedAssets) {
 
     // ── Settings ──
     settingsBtn.onClick(() => {
+      if (modalOpen) return; // pausa ya abierta
       paused = true;
+      modalOpen = true;
       const objs = [];
       const add = (o) => { objs.push(o); return o; };
-      const close = () => { objs.forEach(o => { try { k.destroy(o); } catch {} }); paused = false; };
+      const close = () => { objs.forEach(o => { try { k.destroy(o); } catch {} }); paused = false; modalOpen = false; };
 
-      add(k.add([k.rect(340,440,{radius:18}), k.pos(240,427), k.anchor('center'), k.color(26,10,46), k.opacity(0.96), k.z(200)]));
-      add(k.add([k.text(t('settings_title'),{size:22}), k.pos(240,240), k.anchor('center'), k.color(255,255,255), k.z(201)]));
+      add(k.add([k.rect(360,320,{radius:18}), k.pos(240,427), k.anchor('center'), k.color(26,10,46), k.opacity(0.96), k.z(200)]));
+      add(k.add([k.text(t('settings_title'),{size:22}), k.pos(240,300), k.anchor('center'), k.color(255,255,255), k.z(201)]));
 
       function volRow(label, getVal, onDown, onUp, onMute, y) {
         add(k.add([k.text(label,{size:16}), k.pos(90,y), k.anchor('center'), k.color(200,180,255), k.z(201)]));
-        const valLbl = add(k.add([k.text(`${Math.round(getVal()*100)}%`,{size:16}), k.pos(175,y), k.anchor('center'), k.color(230,240,255), k.z(201)]));
-        const bm = add(k.add([k.rect(36,36,{radius:8}), k.pos(220,y), k.anchor('center'), k.color(80,60,120), k.area(), k.z(201)]));
-        add(k.add([k.text('−',{size:22}), k.pos(220,y), k.anchor('center'), k.color(255,255,255), k.z(202)]));
-        const bp = add(k.add([k.rect(36,36,{radius:8}), k.pos(264,y), k.anchor('center'), k.color(80,60,120), k.area(), k.z(201)]));
-        add(k.add([k.text('+',{size:22}), k.pos(264,y), k.anchor('center'), k.color(255,255,255), k.z(202)]));
-        const bmute = add(k.add([k.rect(36,36,{radius:8}), k.pos(308,y), k.anchor('center'), k.color(80,60,120), k.area(), k.z(201)]));
-        add(k.add([k.text('🔇',{size:18}), k.pos(308,y), k.anchor('center'), k.z(202)]));
+        const valLbl = add(k.add([k.text(`${Math.round(getVal()*100)}%`,{size:16}), k.pos(185,y), k.anchor('center'), k.color(230,240,255), k.z(201)]));
+        const bm = add(k.add([k.rect(36,36,{radius:8}), k.pos(230,y), k.anchor('center'), k.color(80,60,120), k.area(), k.z(201)]));
+        add(k.add([k.text('−',{size:22}), k.pos(230,y), k.anchor('center'), k.color(255,255,255), k.z(202)]));
+        const bp = add(k.add([k.rect(36,36,{radius:8}), k.pos(274,y), k.anchor('center'), k.color(80,60,120), k.area(), k.z(201)]));
+        add(k.add([k.text('+',{size:22}), k.pos(274,y), k.anchor('center'), k.color(255,255,255), k.z(202)]));
+        const bmute = add(k.add([k.rect(36,36,{radius:8}), k.pos(318,y), k.anchor('center'), k.color(80,60,120), k.area(), k.z(201)]));
+        add(k.add([k.text('🔇',{size:18}), k.pos(318,y), k.anchor('center'), k.z(202)]));
         bm.onClick(() => { onDown(); valLbl.text=`${Math.round(getVal()*100)}%`; }); bm.onHover(()=>k.setCursor('pointer')); bm.onHoverEnd(()=>k.setCursor('default'));
         bp.onClick(() => { onUp(); valLbl.text=`${Math.round(getVal()*100)}%`; }); bp.onHover(()=>k.setCursor('pointer')); bp.onHoverEnd(()=>k.setCursor('default'));
         bmute.onClick(() => { onMute(); valLbl.text=`${Math.round(getVal()*100)}%`; }); bmute.onHover(()=>k.setCursor('pointer')); bmute.onHoverEnd(()=>k.setCursor('default'));
       }
 
-      volRow('SFX', ()=>settings.sfxVolume, ()=>{settings.sfxVolume=Math.max(0,settings.sfxVolume-0.1);}, ()=>{settings.sfxVolume=Math.min(1,settings.sfxVolume+0.1);}, ()=>{settings.sfxVolume=0;}, 320);
-      volRow('🎵 Música', ()=>settings.musicVolume, ()=>setMusicVolume(settings.musicVolume-0.1), ()=>setMusicVolume(settings.musicVolume+0.1), ()=>setMusicVolume(0), 380);
+      volRow('SFX', ()=>settings.sfxVolume, ()=>{settings.sfxVolume=Math.max(0,settings.sfxVolume-0.1);}, ()=>{settings.sfxVolume=Math.min(1,settings.sfxVolume+0.1);}, ()=>{settings.sfxVolume=0;}, 370);
+      volRow('🎵 Música', ()=>settings.musicVolume, ()=>setMusicVolume(settings.musicVolume-0.1), ()=>setMusicVolume(settings.musicVolume+0.1), ()=>setMusicVolume(0), 430);
 
-      // Powerups toggle
-      add(k.add([k.text('Powerups',{size:16}), k.pos(90,440), k.anchor('center'), k.color(200,180,255), k.z(201)]));
-      const puColor = settings.powerupsEnabled ? k.rgb(120,220,160) : k.rgb(255,120,120);
-      const puLbl = add(k.add([k.text(settings.powerupsEnabled?'ON':'OFF',{size:16}), k.pos(175,440), k.anchor('center'), k.color(puColor.r,puColor.g,puColor.b), k.z(201)]));
-      const puToggle = add(k.add([k.rect(80,36,{radius:8}), k.pos(264,440), k.anchor('center'), k.color(80,60,120), k.area(), k.z(201)]));
-      add(k.add([k.text('Toggle',{size:16}), k.pos(264,440), k.anchor('center'), k.color(255,255,255), k.z(202)]));
-      puToggle.onClick(() => {
-        settings.powerupsEnabled = !settings.powerupsEnabled;
-        puLbl.text = settings.powerupsEnabled ? 'ON' : 'OFF';
-        puLbl.color = settings.powerupsEnabled ? k.rgb(120,220,160) : k.rgb(255,120,120);
-      });
-      puToggle.onHover(()=>k.setCursor('pointer')); puToggle.onHoverEnd(()=>k.setCursor('default'));
-
-      const cb = add(k.add([k.rect(160,44,{radius:12}), k.pos(240,550), k.anchor('center'), k.color(220,60,60), k.outline(3,k.rgb(255,220,80)), k.area(), k.z(201)]));
-      add(k.add([k.text(t('tutorial_back'),{size:20}), k.pos(240,550), k.anchor('center'), k.color(255,255,255), k.z(202)]));
+      const cb = add(k.add([k.rect(160,44,{radius:12}), k.pos(240,530), k.anchor('center'), k.color(220,60,60), k.outline(3,k.rgb(255,220,80)), k.area(), k.z(201)]));
+      add(k.add([k.text(t('tutorial_back'),{size:20}), k.pos(240,530), k.anchor('center'), k.color(255,255,255), k.z(202)]));
       cb.onClick(close); cb.onHover(()=>k.setCursor('pointer')); cb.onHoverEnd(()=>k.setCursor('default'));
     });
     settingsBtn.onHover(()=>k.setCursor('pointer')); settingsBtn.onHoverEnd(()=>k.setCursor('default'));
