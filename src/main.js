@@ -924,98 +924,137 @@ function createScenes(k, preloadedAssets) {
     k.setGravity(0);
     addBg(k, 0.25);
     k.add([k.rect(460,800,{radius:18}), k.pos(240,427), k.anchor('center'), k.color(26,10,46), k.opacity(0.92), k.z(1)]);
-    k.add([k.text(t('gameover_leaderboard'),{size:30}), k.pos(240,80), k.anchor('center'), k.color(255,220,80), k.z(2)]);
+    k.add([k.text(t('gameover_leaderboard'),{size:30}), k.pos(240,75), k.anchor('center'), k.color(255,220,80), k.z(2)]);
 
-    // ── Tab buttons ──
     let activeMode = initMode;
-    const tabObjs = [];
 
-    function clearTabs() { tabObjs.forEach(o => { try { k.destroy(o); } catch {} }); tabObjs.length = 0; }
+    // ── Full DOM overlay — tabs + scroll + back button all in HTML ──
+    // This avoids kaplay/DOM z-index conflicts entirely.
+    let overlay = document.getElementById('lr-overlay');
+    if (overlay) overlay.remove();
+    overlay = document.createElement('div');
+    overlay.id = 'lr-overlay';
 
-    // ── Scrollable list via DOM overlay ──
-    let listDiv = document.getElementById('lr-list');
-    if (listDiv) listDiv.remove();
-    listDiv = document.createElement('div');
-    listDiv.id = 'lr-list';
-    Object.assign(listDiv.style, {
+    // We need to match kaplay's letterbox canvas position
+    const canvas = k.canvas;
+    function getCanvasRect() {
+      return canvas ? canvas.getBoundingClientRect() : { left:0, top:0, width:window.innerWidth, height:window.innerHeight };
+    }
+
+    Object.assign(overlay.style, {
       position: 'fixed',
       top: '0', left: '0', width: '100%', height: '100%',
-      display: 'flex', flexDirection: 'column',
-      alignItems: 'center',
       pointerEvents: 'none',
-      zIndex: '500',
+      zIndex: '600',
     });
-    document.body.appendChild(listDiv);
+    document.body.appendChild(overlay);
 
-    // Inner scroll container — positioned to match kaplay canvas letterbox
-    const scrollEl = document.createElement('div');
-    Object.assign(scrollEl.style, {
-      position: 'absolute',
-      top: '18%', left: '50%',
-      transform: 'translateX(-50%)',
-      width: '78%', maxWidth: '360px',
-      height: '52%',
-      overflowY: 'auto',
-      pointerEvents: 'all',
-      WebkitOverflowScrolling: 'touch',
-    });
-    listDiv.appendChild(scrollEl);
+    function rebuildOverlay() {
+      overlay.innerHTML = '';
+      const cr = getCanvasRect();
+      const scaleX = cr.width / 480;
+      const scaleY = cr.height / 854;
 
-    function loadList(mode) {
-      scrollEl.innerHTML = '<p style="color:#aaa;text-align:center;padding:20px">Cargando...</p>';
-      fetch(`/api/leaderboard?mode=${mode}`)
+      // Helper: kaplay coords → screen px
+      const sx = (x) => cr.left + x * scaleX;
+      const sy = (y) => cr.top  + y * scaleY;
+      const sw = (w) => w * scaleX;
+      const sh = (h) => h * scaleY;
+
+      // ── Tabs ──
+      const tabsData = [
+        { mode: 'powerups',    label: '⚡ Powerups' },
+        { mode: 'competitive', label: '🏆 Competitivo' },
+      ];
+      tabsData.forEach((tab, i) => {
+        const kx = 130 + i * 220, ky = 148;
+        const btn = document.createElement('button');
+        btn.textContent = tab.label;
+        const isActive = tab.mode === activeMode;
+        Object.assign(btn.style, {
+          position: 'fixed',
+          left: `${sx(kx - 95)}px`, top: `${sy(ky - 22)}px`,
+          width: `${sw(190)}px`, height: `${sh(44)}px`,
+          background: isActive ? 'rgb(220,60,60)' : 'rgb(40,30,60)',
+          border: isActive ? '2px solid #ffdc50' : '2px solid rgb(80,60,100)',
+          borderRadius: '10px',
+          color: '#fff',
+          fontSize: `${sh(16)}px`,
+          cursor: 'pointer',
+          pointerEvents: 'all',
+          zIndex: '601',
+        });
+        btn.addEventListener('click', () => { activeMode = tab.mode; rebuildOverlay(); });
+        btn.addEventListener('touchend', (e) => { e.preventDefault(); activeMode = tab.mode; rebuildOverlay(); });
+        overlay.appendChild(btn);
+      });
+
+      // ── Scroll list ──
+      const listTop = sy(200), listHeight = sh(500);
+      const scrollEl = document.createElement('div');
+      Object.assign(scrollEl.style, {
+        position: 'fixed',
+        left: `${sx(30)}px`, top: `${listTop}px`,
+        width: `${sw(420)}px`, height: `${listHeight}px`,
+        overflowY: 'auto',
+        pointerEvents: 'all',
+        WebkitOverflowScrolling: 'touch',
+        zIndex: '601',
+      });
+      scrollEl.innerHTML = '<p style="color:#aaa;text-align:center;padding:20px;font-family:Arial">Cargando...</p>';
+      overlay.appendChild(scrollEl);
+
+      fetch(`/api/leaderboard?mode=${activeMode}`)
         .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
         .then(rows => {
           if (!Array.isArray(rows) || rows.length === 0) {
-            scrollEl.innerHTML = '<p style="color:#aaa;text-align:center;padding:20px">Sin registros aún</p>';
+            scrollEl.innerHTML = '<p style="color:#aaa;text-align:center;padding:20px;font-family:Arial">Sin registros aún</p>';
             return;
           }
           scrollEl.innerHTML = rows.map((r, i) => {
             const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
             const isMe = myScore !== undefined && r.score === myScore;
-            const color = isMe ? '#ffdc50' : '#e0e8ff';
-            return `<div style="display:flex;justify-content:space-between;padding:7px 4px;border-bottom:1px solid rgba(255,255,255,0.08);color:${color};font-size:15px;font-family:Arial,sans-serif">
-              <span>${medal} ${r.name}</span>
-              <span>${r.score} pts</span>
+            const col = isMe ? '#ffdc50' : '#e0e8ff';
+            const fs = sh(16);
+            return `<div style="display:flex;justify-content:space-between;padding:${sh(7)}px ${sw(4)}px;border-bottom:1px solid rgba(255,255,255,0.1);color:${col};font-size:${fs}px;font-family:Arial,sans-serif">
+              <span>${medal} ${r.name}</span><span>${r.score} pts</span>
             </div>`;
           }).join('');
         })
         .catch(err => {
-          scrollEl.innerHTML = `<p style="color:#f88;text-align:center;padding:20px">${t('leaderboard_error')}<br>${err.message}</p>`;
+          scrollEl.innerHTML = `<p style="color:#f88;text-align:center;padding:20px;font-family:Arial">Error: ${err.message}</p>`;
         });
-    }
 
-    function renderTabs() {
-      clearTabs();
-      const tabs = [
-        { mode: 'powerups',    label: '⚡ Powerups' },
-        { mode: 'competitive', label: '🏆 Competitivo' },
-      ];
-      tabs.forEach((tab, i) => {
-        const x = 130 + i * 220;
-        const isActive = tab.mode === activeMode;
-        const bg = tabObjs.push(k.add([k.rect(190,44,{radius:10}), k.pos(x,148), k.anchor('center'),
-          k.color(isActive ? 255 : 40, isActive ? 180 : 30, isActive ? 60 : 60),
-          k.outline(2, isActive ? k.rgb(255,220,80) : k.rgb(80,60,100)),
-          k.area(), k.z(10)])) && tabObjs[tabObjs.length-1];
-        tabObjs.push(k.add([k.text(tab.label,{size:16}), k.pos(x,148), k.anchor('center'), k.color(255,255,255), k.z(11)]));
-        bg.onClick(() => { activeMode = tab.mode; renderTabs(); loadList(tab.mode); });
-        bg.onHover(() => k.setCursor('pointer')); bg.onHoverEnd(() => k.setCursor('default'));
+      // ── Back button ──
+      const backBtn = document.createElement('button');
+      backBtn.textContent = t('tutorial_back');
+      Object.assign(backBtn.style, {
+        position: 'fixed',
+        left: `${sx(140)}px`, top: `${sy(736)}px`,
+        width: `${sw(200)}px`, height: `${sh(48)}px`,
+        background: 'rgb(220,60,60)',
+        border: '3px solid #ffdc50',
+        borderRadius: '14px',
+        color: '#fff',
+        fontSize: `${sh(20)}px`,
+        cursor: 'pointer',
+        pointerEvents: 'all',
+        zIndex: '601',
+        fontFamily: 'Arial',
       });
-      loadList(activeMode);
+      const goBack = () => {
+        overlay.remove();
+        myScore !== undefined
+          ? k.go('gameover', { score:myScore, highScore:loadHighScore(), mode:activeMode })
+          : k.go('menu');
+      };
+      backBtn.addEventListener('click', goBack);
+      backBtn.addEventListener('touchend', (e) => { e.preventDefault(); goBack(); });
+      overlay.appendChild(backBtn);
     }
 
-    renderTabs();
-
-    const backBtn = k.add([k.rect(200,48,{radius:14}), k.pos(240,760), k.anchor('center'), k.color(220,60,60), k.outline(3,k.rgb(255,220,80)), k.area(), k.z(3)]);
-    k.add([k.text(t('tutorial_back'),{size:22}), k.pos(240,760), k.anchor('center'), k.color(255,255,255), k.z(4)]);
-    backBtn.onClick(() => {
-      listDiv.remove();
-      myScore !== undefined ? k.go('gameover', { score:myScore, highScore:loadHighScore(), mode:activeMode }) : k.go('menu');
-    });
-    backBtn.onHover(() => k.setCursor('pointer')); backBtn.onHoverEnd(() => k.setCursor('default'));
-
-    k.onSceneLeave(() => { const el = document.getElementById('lr-list'); if (el) el.remove(); });
+    rebuildOverlay();
+    k.onSceneLeave(() => { const el = document.getElementById('lr-overlay'); if (el) el.remove(); });
   });
 
 } // end createScenes

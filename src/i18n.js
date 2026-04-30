@@ -19,7 +19,7 @@ export const i18n = {
     tutorial_1_line1: '+1 punto por cada toque.',
     tutorial_1_line2: 'El combo crece con cada toque consecutivo.',
     tutorial_1_line3: 'Sobrevive el mayor tiempo posible.',
-    tutorial_1_line4: '¡El balón se vuelve más difícil con el tiempo!',
+    tutorial_1_line4: 'Activa 🏆 en el menú para jugar sin powerups.',
 
     tutorial_2_title: 'FÍSICA DEL BALÓN',
     tutorial_2_left:  'Toque derecha\n→ balón va izquierda',
@@ -107,7 +107,7 @@ export const i18n = {
     tutorial_1_line1: '+1 point per touch.',
     tutorial_1_line2: 'Combo grows with every consecutive touch.',
     tutorial_1_line3: 'Survive as long as possible.',
-    tutorial_1_line4: 'The ball gets harder to control over time!',
+    tutorial_1_line4: 'Tap 🏆 in the menu to play without powerups.',
 
     tutorial_2_title: 'BALL PHYSICS',
     tutorial_2_left:  'Tap right\n→ ball goes left',
