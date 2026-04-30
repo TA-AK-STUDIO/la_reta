@@ -280,7 +280,7 @@ function createScenes(k, preloadedAssets) {
     compBtn.onHover(() => k.setCursor('pointer')); compBtn.onHoverEnd(() => k.setCursor('default'));
 
     // Logo — ~360px wide on a 480px canvas
-    const logoY = 130;
+    const logoY = 160;
     const logoSc = 360 / 1536;
     k.add([k.sprite('logo'), k.pos(240, logoY), k.anchor('center'), k.scale(logoSc), k.z(2)]);
 
@@ -445,11 +445,12 @@ function createScenes(k, preloadedAssets) {
 
     // Ball state
     let ballX = 240;
-    let ballY = 300;
+    let ballY = 427;  // centro de pantalla
     let ballVX = 0;
     let ballVY = 0;
     let ballSpin = 0;
     let ballRotation = 0;
+    let gameStarted = false;  // física no corre hasta el primer toque válido
     // ball.png: 1536x1024, content bbox x: 289-1247 (958px wide), y: 16-1009 (~993px tall)
     // Target ball diameter on screen: 90px
     // Content width in sprite: 958px → scale = 90/958 = 0.094
@@ -467,7 +468,9 @@ function createScenes(k, preloadedAssets) {
     let perfectZoneActive = false;
     let perfectZoneTimer = 0;
     let dobleActive = false;
+    let dobleTimer = 0;
     let fuegoActive = false;
+    let fuegoTimer = 0;
 
     const activePowerups = [];
     let powerupSpawnTimer = settings.powerupsEnabled ? 8 : 999999;
@@ -479,9 +482,20 @@ function createScenes(k, preloadedAssets) {
     const ballObj = k.add([k.sprite('ball'), k.pos(ballX, ballY), k.anchor('center'), k.scale(BALL_SCALE), k.z(20)]);
 
     // ── HUD ──
-    k.add([k.rect(220,80,{radius:12}), k.pos(10,10), k.color(0,0,0), k.opacity(0.65), k.z(99)]);
+    k.add([k.rect(220,110,{radius:12}), k.pos(10,10), k.color(0,0,0), k.opacity(0.65), k.z(99)]);
     const scoreText = k.add([k.text(`${t('game_score')}: 0`,{size:22}), k.pos(18,18), k.color(255,220,80), k.z(100)]);
     const comboText = k.add([k.text('',{size:20}), k.pos(18,48), k.color(255,140,0), k.z(100)]);
+    const puText    = k.add([k.text('',{size:17}), k.pos(18,76), k.color(255,255,255), k.z(100)]);
+
+    function refreshPowerupHUD() {
+      const parts = [];
+      if (hasRebote)         parts.push('🛡');
+      if (perfectZoneActive) parts.push(`⭐${perfectZoneTimer.toFixed(1)}s`);
+      if (precisionActive)   parts.push(`🎯${precisionTimer.toFixed(1)}s`);
+      if (dobleActive)       parts.push(`💰${dobleTimer.toFixed(1)}s`);
+      if (fuegoActive)       parts.push(`🔥${fuegoTimer.toFixed(1)}s`);
+      puText.text = parts.join(' ');
+    }
 
     const pauseBtn = k.add([k.rect(50,50,{radius:12}), k.pos(450,30), k.anchor('center'), k.color(80,60,120), k.outline(2,k.rgb(180,160,220)), k.area(), k.z(100)]);
     k.add([k.text('⏸',{size:28}), k.pos(450,30), k.anchor('center'), k.z(101)]);
@@ -524,25 +538,21 @@ function createScenes(k, preloadedAssets) {
     function kickBall(tapX, tapY) {
       if (gameOver || paused) return;
 
-      // HITBOX CHECK — solo cuenta si tocas cerca del balón
       const distToBall = Math.sqrt((tapX - ballX) ** 2 + (tapY - ballY) ** 2);
       if (distToBall > KICK_HITBOX) return;
 
-      const offsetX = tapX - ballX;  // negativo = toque a la izquierda del balón
-      const offsetY = tapY - ballY;  // positivo = toque abajo del balón
-
+      const offsetX = tapX - ballX;
+      const offsetY = tapY - ballY;
       const baseForce = 680 + elapsed * 1.5 * diffMult();
       const force = Math.min(baseForce, 1100);
-
-      // Dirección: opuesta al offset (patada real)
-      // offsetX negativo (toque izq) → balón va a la derecha
-      const kickVX = -offsetX * 6;  // acotado porque offsetX max = KICK_HITBOX
-      // offsetY positivo (toque abajo) → más fuerza hacia arriba
       const verticalBias = offsetY > 0 ? 1.25 : 0.85;
+      const kickVX = -offsetX * 6;
       const kickVY = -force * verticalBias;
 
       ballVX = kickVX;
       ballVY = kickVY;
+      gameStarted = true;
+      gameStarted = true;  // arranca la física
 
       const spinFactor = precisionActive ? 0.25 : 1.0;
       ballSpin = (offsetX / BALL_RADIUS) * 200 * spinFactor;
@@ -640,13 +650,16 @@ function createScenes(k, preloadedAssets) {
         showToast(t('toast_perfectzone'), k.rgb(255,220,0));
       } else if (key === 'doble') {
         dobleActive = true;
+        dobleTimer = 8;
         showToast(t('toast_doble'), k.rgb(255,140,0));
         ballVX *= 1.25;
         ballVY *= 1.25;
       } else if (key === 'fuego') {
         fuegoActive = true;
+        fuegoTimer = 10;
         showToast(t('toast_fuego'), k.rgb(255,80,80));
       }
+      refreshPowerupHUD();
     }
 
     function endGame() {
@@ -659,18 +672,17 @@ function createScenes(k, preloadedAssets) {
       k.wait(0.6, () => k.go('gameover', { score, highScore: loadHighScore() }));
     }
 
-    // ── Input ──
-    k.onMouseDown((btn) => {
-      if (btn !== 0) return;
+    // ── Input — usa onClick que funciona con mouse y touch ──
+    k.onClick(() => {
       if (paused || modalOpen) return;
       const pos = k.mousePos();
-      if (pos.y < 80 && (pos.x > 340 || pos.x < 100)) return;
+      if (pos.y < 80 && pos.x > 330) return;
       kickBall(pos.x, pos.y);
     });
 
     k.onTouchStart((id, pos) => {
       if (paused || modalOpen) return;
-      if (pos.y < 80 && (pos.x > 340 || pos.x < 100)) return;
+      if (pos.y < 80 && pos.x > 330) return;
       kickBall(pos.x, pos.y);
     });
 
@@ -688,8 +700,13 @@ function createScenes(k, preloadedAssets) {
         }
       }
 
-      if (precisionTimer > 0) { precisionTimer -= dt; if (precisionTimer <= 0) { precisionActive = false; precisionTimer = 0; } }
-      if (perfectZoneTimer > 0) { perfectZoneTimer -= dt; if (perfectZoneTimer <= 0) { perfectZoneActive = false; perfectZoneTimer = 0; } }
+      if (precisionTimer > 0)   { precisionTimer -= dt;   if (precisionTimer <= 0)   { precisionActive = false;   precisionTimer = 0;   refreshPowerupHUD(); } }
+      if (perfectZoneTimer > 0) { perfectZoneTimer -= dt; if (perfectZoneTimer <= 0) { perfectZoneActive = false; perfectZoneTimer = 0; refreshPowerupHUD(); } }
+      if (dobleTimer > 0)       { dobleTimer -= dt;       if (dobleTimer <= 0)       { dobleActive = false;       dobleTimer = 0;       refreshPowerupHUD(); } }
+      if (fuegoTimer > 0)       { fuegoTimer -= dt;       if (fuegoTimer <= 0)       { fuegoActive = false;       fuegoTimer = 0;       refreshPowerupHUD(); } }
+
+      // Refresh countdown display every frame while any timed powerup is active
+      if (precisionActive || perfectZoneActive || dobleActive || fuegoActive) refreshPowerupHUD();
 
       if (settings.powerupsEnabled) {
         powerupSpawnTimer -= dt;
@@ -699,7 +716,9 @@ function createScenes(k, preloadedAssets) {
         }
       }
 
-      // Ball physics
+      // Ball physics — solo corre después del primer toque
+      if (!gameStarted) return;
+
       ballVY += GRAVITY * dt;
 
       // Instability — crece con el tiempo
@@ -736,8 +755,9 @@ function createScenes(k, preloadedAssets) {
           ballY = GROUND_Y - BALL_RADIUS - 1;
           showToast(t('toast_saved'), k.rgb(100,200,255));
           playSFX('rebote');
+          refreshPowerupHUD();
         } else {
-          if (fuegoActive) { combo = 0; fuegoActive = false; }
+          if (fuegoActive) { combo = 0; fuegoActive = false; fuegoTimer = 0; refreshPowerupHUD(); }
           endGame();
         }
       }

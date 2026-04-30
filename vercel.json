@@ -1,11 +1,14 @@
 {
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" }
-  ],
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
   "functions": {
     "api/leaderboard.js": {
       "memory": 128,
       "maxDuration": 10
     }
-  }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }
