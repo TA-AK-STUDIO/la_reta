@@ -464,6 +464,7 @@ function createScenes(k, preloadedAssets) {
 
     const activePowerups = [];
     let powerupSpawnTimer = settings.powerupsEnabled ? 8 : 999999;
+    let modalOpen = false;  // shared flag — prevents pause + settings overlapping
 
     function diffMult() { return 1 + elapsed * 0.01; }
 
@@ -736,10 +737,8 @@ function createScenes(k, preloadedAssets) {
     });
 
     // ── Pause ──
-    let modalOpen = false;
-
     pauseBtn.onClick(() => {
-      if (modalOpen) return; // settings ya abierto
+      if (modalOpen) return;
       if (paused) { paused = false; return; }
       paused = true;
       modalOpen = true;
