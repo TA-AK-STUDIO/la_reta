@@ -48,7 +48,7 @@ function initGame(preloadedAssets) {
     pixelDensity: Math.min(window.devicePixelRatio || 1, 2),
     crisp: false,
     texFilter: 'linear',
-    touchToMouse: true,
+    touchToMouse: false,
     debug: false,
   });
 
@@ -544,27 +544,31 @@ function createScenes(k, preloadedAssets) {
     }
 
     // ── Kick logic ──
-    // Solo válido si el toque está dentro del radio de hitbox del balón
-    const KICK_HITBOX = BALL_RADIUS * 2.2; // área generosa alrededor del balón
+    const KICK_HITBOX = BALL_RADIUS * 2.2;
+    let kickLock = false;  // prevents double-fire within same event cycle
 
     function kickBall(tapX, tapY) {
       if (gameOver || paused) return;
+      if (kickLock) return;
 
       const distToBall = Math.sqrt((tapX - ballX) ** 2 + (tapY - ballY) ** 2);
       if (distToBall > KICK_HITBOX) return;
 
+      // Lock for this event cycle — unlock after 200ms
+      kickLock = true;
+      setTimeout(() => { kickLock = false; }, 200);
+
       const offsetX = tapX - ballX;
       const offsetY = tapY - ballY;
       const baseForce = 680 + elapsed * 1.5 * diffMult();
-      const force = Math.min(baseForce, 1100);
-      const verticalBias = offsetY > 0 ? 1.25 : 0.85;
-      const kickVX = -offsetX * 6;
+      const force = Math.min(baseForce, 1000);
+      const verticalBias = offsetY > 0 ? 1.2 : 0.85;
+      const kickVX = Math.max(-400, Math.min(400, -offsetX * 4));
       const kickVY = -force * verticalBias;
 
       ballVX = kickVX;
       ballVY = kickVY;
       gameStarted = true;
-      gameStarted = true;  // arranca la física
 
       const spinFactor = precisionActive ? 0.25 : 1.0;
       ballSpin = (offsetX / BALL_RADIUS) * 200 * spinFactor;
@@ -691,13 +695,9 @@ function createScenes(k, preloadedAssets) {
     }
 
     // ── Input ──
-    // En móvil, touchToMouse hace que onClick también se dispare con touch.
-    // Usamos solo onTouchStart para móvil y onClick solo para mouse (desktop).
-    let lastTouchTime = 0;
-
+    // touchToMouse:true hace que touch dispare también onClick.
+    // El cooldown en kickBall (150ms) previene el doble disparo.
     k.onClick(() => {
-      // Si hubo un touch reciente (<100ms), ignorar — ya lo manejó onTouchStart
-      if (Date.now() - lastTouchTime < 100) return;
       if (paused || modalOpen) return;
       const pos = k.mousePos();
       if (pos.y < 80 && pos.x > 330) return;
@@ -705,7 +705,6 @@ function createScenes(k, preloadedAssets) {
     });
 
     k.onTouchStart((id, pos) => {
-      lastTouchTime = Date.now();
       if (paused || modalOpen) return;
       if (pos.y < 80 && pos.x > 330) return;
       kickBall(pos.x, pos.y);
