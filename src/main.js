@@ -571,7 +571,7 @@ function createScenes(k, preloadedAssets) {
       gameStarted = true;
 
       const spinFactor = precisionActive ? 0.25 : 1.0;
-      ballSpin = (offsetX / BALL_RADIUS) * 200 * spinFactor;
+      ballSpin = (offsetX / BALL_RADIUS) * 320 * spinFactor;  // más spin
 
       // Score: +1 per touch + combo multiplier + fuego bonus
       combo++;
@@ -691,7 +691,7 @@ function createScenes(k, preloadedAssets) {
       spawnParticles(ballX, ballY, k.rgb(255,80,80));
       stopMusic();
       saveHighScore(score);
-      k.wait(0.6, () => k.go('gameover', { score, highScore: loadHighScore() }));
+      k.wait(0.6, () => k.go('gameover', { score, highScore: loadHighScore(), mode: settings.powerupsEnabled ? 'powerups' : 'competitive' }));
     }
 
     // ── Input ──
@@ -749,15 +749,15 @@ function createScenes(k, preloadedAssets) {
       ballX += ballVX * dt;
       ballY += ballVY * dt;
 
-      // Wall bounce — balón siempre dentro de pantalla
-      if (ballX < BALL_RADIUS)           { ballX = BALL_RADIUS;           ballVX =  Math.abs(ballVX) * 0.65; }
-      if (ballX > 480 - BALL_RADIUS)     { ballX = 480 - BALL_RADIUS;     ballVX = -Math.abs(ballVX) * 0.65; }
-      if (ballY < CEILING_Y)             { ballY = CEILING_Y;             ballVY =  Math.abs(ballVY) * 0.55; }
+      // Wall bounce — rebote con transferencia de spin
+      if (ballX < BALL_RADIUS)           { ballX = BALL_RADIUS;           ballVX =  Math.abs(ballVX) * 0.75; ballSpin -= 80; }
+      if (ballX > 480 - BALL_RADIUS)     { ballX = 480 - BALL_RADIUS;     ballVX = -Math.abs(ballVX) * 0.75; ballSpin += 80; }
+      if (ballY < CEILING_Y)             { ballY = CEILING_Y;             ballVY =  Math.abs(ballVY) * 0.6;  ballSpin *= -0.5; }
       if (ballY > GROUND_Y - BALL_RADIUS){ ballY = GROUND_Y - BALL_RADIUS; }
 
       // Spin
       ballRotation += ballSpin * dt;
-      ballSpin *= 0.96;
+      ballSpin *= 0.98;  // decay más lento = spin más duradero
 
       ballObj.pos.x = ballX;
       ballObj.pos.y = ballY;
@@ -853,6 +853,7 @@ function createScenes(k, preloadedAssets) {
   k.scene('gameover', (data) => {
     const finalScore = data?.score ?? 0;
     const highScore  = data?.highScore ?? loadHighScore();
+    const gameMode   = data?.mode ?? 'powerups';
     k.setGravity(0);
     addBg(k, 0.25);
     k.add([k.rect(460,820,{radius:18}), k.pos(240,427), k.anchor('center'), k.color(26,10,46), k.opacity(0.92), k.z(1)]);
@@ -894,7 +895,7 @@ function createScenes(k, preloadedAssets) {
     const saveName = () => {
       if (saved || playerName.length === 0) return;
       saved = true;
-      fetch('/api/leaderboard', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ name:playerName, score:finalScore }) })
+      fetch('/api/leaderboard', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ name:playerName, score:finalScore, mode:gameMode }) })
         .then(() => { nameDisplay.text = t('gameover_saved_status'); nameDisplay.color = k.rgb(120,220,160); domInput.blur(); })
         .catch(() => { nameDisplay.text = t('gameover_error'); nameDisplay.color = k.rgb(255,100,100); });
     };
@@ -903,7 +904,7 @@ function createScenes(k, preloadedAssets) {
     k.onKeyPress('enter', saveName);
 
     makeBtn(k, t('gameover_play_again'), 240, 420, 280, 52, () => { domInput.remove(); k.go('game'); });
-    makeBtn(k, t('gameover_leaderboard'), 240, 485, 280, 52, () => { domInput.remove(); k.go('leaderboard', { score:finalScore }); }, k.rgb(100,80,200));
+    makeBtn(k, t('gameover_leaderboard'), 240, 485, 280, 52, () => { domInput.remove(); k.go('leaderboard', { score:finalScore, mode:gameMode }); }, k.rgb(100,80,200));
     makeBtn(k, t('gameover_menu'), 240, 550, 280, 52, () => { domInput.remove(); k.go('menu'); }, k.rgb(60,140,200));
 
     const back = k.add([k.rect(110,36,{radius:12}), k.pos(70,60), k.anchor('center'), k.color(220,60,60), k.outline(3,k.rgb(255,220,80)), k.area(), k.z(20)]);
@@ -918,34 +919,103 @@ function createScenes(k, preloadedAssets) {
   // SCENE: LEADERBOARD
   // ══════════════════════════════════════════════════════════════════════════
   k.scene('leaderboard', (data) => {
-    const myScore = data?.score;
+    const myScore  = data?.score;
+    const initMode = data?.mode ?? 'powerups';
     k.setGravity(0);
     addBg(k, 0.25);
     k.add([k.rect(460,800,{radius:18}), k.pos(240,427), k.anchor('center'), k.color(26,10,46), k.opacity(0.92), k.z(1)]);
-    k.add([k.text(t('gameover_leaderboard'),{size:34}), k.pos(240,100), k.anchor('center'), k.color(255,220,80), k.z(2)]);
+    k.add([k.text(t('gameover_leaderboard'),{size:30}), k.pos(240,80), k.anchor('center'), k.color(255,220,80), k.z(2)]);
 
-    const loadingText = k.add([k.text(t('leaderboard_loading'),{size:20}), k.pos(240,420), k.anchor('center'), k.color(240,245,255), k.z(2)]);
+    // ── Tab buttons ──
+    let activeMode = initMode;
+    const tabObjs = [];
 
-    fetch('/api/leaderboard')
-      .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.json(); })
-      .then(rows => {
-        try { k.destroy(loadingText); } catch {}
-        if (!Array.isArray(rows) || rows.length === 0) {
-          k.add([k.text(t('leaderboard_empty'),{size:20,align:'center'}), k.pos(240,420), k.anchor('center'), k.color(240,245,255), k.z(2)]);
-          return;
-        }
-        const lines = rows.slice(0,10).map((r,i) => `${i+1}. ${r.name}  ${r.score} pts`).join('\n');
-        k.add([k.text(lines,{size:18,width:420,lineSpacing:10}), k.pos(240,420), k.anchor('center'), k.color(240,245,255), k.z(2)]);
-      })
-      .catch(err => {
-        try { k.destroy(loadingText); } catch {}
-        k.add([k.text(`${t('leaderboard_error')}\n${err.message}`,{size:18,width:400,align:'center'}), k.pos(240,420), k.anchor('center'), k.color(255,120,120), k.z(2)]);
+    function clearTabs() { tabObjs.forEach(o => { try { k.destroy(o); } catch {} }); tabObjs.length = 0; }
+
+    // ── Scrollable list via DOM overlay ──
+    let listDiv = document.getElementById('lr-list');
+    if (listDiv) listDiv.remove();
+    listDiv = document.createElement('div');
+    listDiv.id = 'lr-list';
+    Object.assign(listDiv.style, {
+      position: 'fixed',
+      top: '0', left: '0', width: '100%', height: '100%',
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center',
+      pointerEvents: 'none',
+      zIndex: '500',
+    });
+    document.body.appendChild(listDiv);
+
+    // Inner scroll container — positioned to match kaplay canvas letterbox
+    const scrollEl = document.createElement('div');
+    Object.assign(scrollEl.style, {
+      position: 'absolute',
+      top: '18%', left: '50%',
+      transform: 'translateX(-50%)',
+      width: '78%', maxWidth: '360px',
+      height: '52%',
+      overflowY: 'auto',
+      pointerEvents: 'all',
+      WebkitOverflowScrolling: 'touch',
+    });
+    listDiv.appendChild(scrollEl);
+
+    function loadList(mode) {
+      scrollEl.innerHTML = '<p style="color:#aaa;text-align:center;padding:20px">Cargando...</p>';
+      fetch(`/api/leaderboard?mode=${mode}`)
+        .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+        .then(rows => {
+          if (!Array.isArray(rows) || rows.length === 0) {
+            scrollEl.innerHTML = '<p style="color:#aaa;text-align:center;padding:20px">Sin registros aún</p>';
+            return;
+          }
+          scrollEl.innerHTML = rows.map((r, i) => {
+            const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
+            const isMe = myScore !== undefined && r.score === myScore;
+            const color = isMe ? '#ffdc50' : '#e0e8ff';
+            return `<div style="display:flex;justify-content:space-between;padding:7px 4px;border-bottom:1px solid rgba(255,255,255,0.08);color:${color};font-size:15px;font-family:Arial,sans-serif">
+              <span>${medal} ${r.name}</span>
+              <span>${r.score} pts</span>
+            </div>`;
+          }).join('');
+        })
+        .catch(err => {
+          scrollEl.innerHTML = `<p style="color:#f88;text-align:center;padding:20px">${t('leaderboard_error')}<br>${err.message}</p>`;
+        });
+    }
+
+    function renderTabs() {
+      clearTabs();
+      const tabs = [
+        { mode: 'powerups',    label: '⚡ Powerups' },
+        { mode: 'competitive', label: '🏆 Competitivo' },
+      ];
+      tabs.forEach((tab, i) => {
+        const x = 130 + i * 220;
+        const isActive = tab.mode === activeMode;
+        const bg = tabObjs.push(k.add([k.rect(190,44,{radius:10}), k.pos(x,148), k.anchor('center'),
+          k.color(isActive ? 255 : 40, isActive ? 180 : 30, isActive ? 60 : 60),
+          k.outline(2, isActive ? k.rgb(255,220,80) : k.rgb(80,60,100)),
+          k.area(), k.z(10)])) && tabObjs[tabObjs.length-1];
+        tabObjs.push(k.add([k.text(tab.label,{size:16}), k.pos(x,148), k.anchor('center'), k.color(255,255,255), k.z(11)]));
+        bg.onClick(() => { activeMode = tab.mode; renderTabs(); loadList(tab.mode); });
+        bg.onHover(() => k.setCursor('pointer')); bg.onHoverEnd(() => k.setCursor('default'));
       });
+      loadList(activeMode);
+    }
+
+    renderTabs();
 
     const backBtn = k.add([k.rect(200,48,{radius:14}), k.pos(240,760), k.anchor('center'), k.color(220,60,60), k.outline(3,k.rgb(255,220,80)), k.area(), k.z(3)]);
     k.add([k.text(t('tutorial_back'),{size:22}), k.pos(240,760), k.anchor('center'), k.color(255,255,255), k.z(4)]);
-    backBtn.onClick(() => myScore !== undefined ? k.go('gameover', { score:myScore, highScore:loadHighScore() }) : k.go('menu'));
+    backBtn.onClick(() => {
+      listDiv.remove();
+      myScore !== undefined ? k.go('gameover', { score:myScore, highScore:loadHighScore(), mode:activeMode }) : k.go('menu');
+    });
     backBtn.onHover(() => k.setCursor('pointer')); backBtn.onHoverEnd(() => k.setCursor('default'));
+
+    k.onSceneLeave(() => { const el = document.getElementById('lr-list'); if (el) el.remove(); });
   });
 
 } // end createScenes
