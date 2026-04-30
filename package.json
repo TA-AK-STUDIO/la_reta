@@ -1,0 +1,19 @@
+{
+  "name": "la-reta",
+  "version": "1.0.0",
+  "description": "La Reta — Mexican street football arcade game",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": ["game", "arcade", "football", "loteria", "mexico"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.2",
+    "kaplay": "^3001.0.19",
+    "vite": "^7.3.1"
+  }
+}

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>La Reta</title>
+  <link rel="icon" type="image/png" href="/assets/logo.png">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      overflow: hidden;
+      background: #1a0a2e;
+      touch-action: none;
+      font-family: Arial, sans-serif;
+    }
+    #loading-screen {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: #1a0a2e;
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      color: white;
+    }
+    #loading-screen.show { display: flex; }
+    #loading-text { font-size: 22px; color: #ffcc00; }
+    canvas { display: block; image-rendering: auto; }
+  </style>
+  <script type="module" crossorigin src="/assets/index-CpRsRTrZ.js"></script>
+</head>
+<body>
+  <div id="loading-screen">
+    <div id="loading-text">Cargando La Reta...</div>
+  </div>
+</body>
+</html>
