@@ -981,54 +981,116 @@ function createScenes(k, preloadedAssets) {
     let playerName = '';
     let saved = false;
 
+    // Remove any leftover input
     const prev = document.getElementById('lr-name-input');
     if (prev) prev.remove();
 
-    const nameBox = k.add([k.rect(280,42,{radius:12}), k.pos(200,335), k.anchor('center'), k.color(40,30,60), k.outline(2,k.rgb(140,100,220)), k.area(), k.z(2)]);
-    const nameDisplay = k.add([k.text('',{size:20}), k.pos(200,335), k.anchor('center'), k.color(230,240,255), k.z(3)]);
-    const placeholder = k.add([k.text(t('gameover_input_placeholder'),{size:18}), k.pos(200,335), k.anchor('center'), k.color(120,100,160), k.opacity(0.7), k.z(3)]);
-
+    // ── Real visible DOM input — iOS requires focus() in a native touch handler ──
     const domInput = document.createElement('input');
     domInput.id = 'lr-name-input';
     domInput.type = 'text';
     domInput.maxLength = 20;
+    domInput.autocomplete = 'off';
+    domInput.autocorrect = 'off';
     domInput.autocapitalize = 'words';
-    Object.assign(domInput.style, { position:'fixed', left:'50%', top:'50%', transform:'translate(-50%,-50%)', width:'1px', height:'1px', opacity:'0', zIndex:'9999', border:'0', background:'transparent', color:'transparent', caretColor:'transparent' });
+    domInput.spellcheck = false;
+    domInput.placeholder = t('gameover_input_placeholder');
+
+    // Position it over the kaplay canvas at the correct spot (y≈335 in 480×854 space)
+    function positionInput() {
+      const cr = k.canvas.getBoundingClientRect();
+      const scaleX = cr.width / 480;
+      const scaleY = cr.height / 854;
+      const inputW = 280 * scaleX;
+      const inputH = 44 * scaleY;
+      const inputX = cr.left + (200 - 140) * scaleX;  // center x=200, width=280
+      const inputY = cr.top  + (335 - 22) * scaleY;   // center y=335, height=44
+      Object.assign(domInput.style, {
+        position: 'fixed',
+        left: `${inputX}px`,
+        top:  `${inputY}px`,
+        width: `${inputW}px`,
+        height: `${inputH}px`,
+        fontSize: `${Math.round(18 * scaleY)}px`,
+        padding: '0 10px',
+        border: '2px solid rgb(140,100,220)',
+        borderRadius: '12px',
+        background: 'rgba(40,30,60,0.95)',
+        color: '#e0e8ff',
+        outline: 'none',
+        zIndex: '9999',
+        boxSizing: 'border-box',
+        fontFamily: 'Arial, sans-serif',
+        textAlign: 'center',
+      });
+    }
+    positionInput();
+    window.addEventListener('resize', positionInput);
     document.body.appendChild(domInput);
+
+    // Status label (replaces input text on save)
+    const statusLbl = k.add([k.text('',{size:18}), k.pos(200,335), k.anchor('center'), k.color(120,220,160), k.z(3)]);
 
     domInput.addEventListener('input', () => {
       if (saved) return;
       playerName = domInput.value.slice(0, 20);
-      nameDisplay.text = playerName;
-      placeholder.opacity = playerName.length ? 0 : 0.7;
     });
-    nameBox.onClick(() => { if (!saved) { domInput.focus(); setTimeout(() => domInput.focus(), 20); } });
-    nameBox.onHover(() => k.setCursor('text')); nameBox.onHoverEnd(() => k.setCursor('default'));
 
-    const saveBtn = k.add([k.rect(50,42,{radius:12}), k.pos(370,335), k.anchor('center'), k.color(60,180,100), k.outline(2,k.rgb(120,220,160)), k.area(), k.z(2)]);
-    k.add([k.text('💾',{size:26}), k.pos(370,335), k.anchor('center'), k.z(3)]);
+    // Save button (💾) — native touchstart for iOS
+    const saveBtn = k.add([k.rect(50,42,{radius:12}), k.pos(370,335), k.anchor('center'), k.color(60,180,100), k.outline(2,k.rgb(120,220,160)), k.area(), k.z(10)]);
+    k.add([k.text('💾',{size:26}), k.pos(370,335), k.anchor('center'), k.z(11)]);
 
     const saveName = () => {
-      if (saved || playerName.length === 0) return;
+      if (saved) return;
+      const name = domInput.value.trim().slice(0, 20);
+      if (!name) { domInput.focus(); return; }
       saved = true;
-      fetch('/api/leaderboard', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ name:playerName, score:finalScore, mode:gameMode }) })
-        .then(() => { nameDisplay.text = t('gameover_saved_status'); nameDisplay.color = k.rgb(120,220,160); domInput.blur(); })
-        .catch(() => { nameDisplay.text = t('gameover_error'); nameDisplay.color = k.rgb(255,100,100); });
+      domInput.blur();
+      domInput.style.display = 'none';
+      fetch('/api/leaderboard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, score: finalScore, mode: gameMode }),
+      })
+        .then(() => { statusLbl.text = t('gameover_saved_status'); statusLbl.color = k.rgb(120,220,160); })
+        .catch(() => { statusLbl.text = t('gameover_error'); statusLbl.color = k.rgb(255,100,100); });
     };
+
     saveBtn.onClick(saveName);
     saveBtn.onHover(() => k.setCursor('pointer')); saveBtn.onHoverEnd(() => k.setCursor('default'));
+
+    // Native touchend on save button for iOS
+    k.canvas.addEventListener('touchend', (e) => {
+      if (saved) return;
+      const cr = k.canvas.getBoundingClientRect();
+      const scaleX = cr.width / 480;
+      const scaleY = cr.height / 854;
+      for (const touch of e.changedTouches) {
+        const kx = (touch.clientX - cr.left) / scaleX;
+        const ky = (touch.clientY - cr.top)  / scaleY;
+        // Save button area: x 345-395, y 314-356
+        if (kx > 345 && kx < 395 && ky > 314 && ky < 356) { saveName(); return; }
+      }
+    }, { passive: true });
+
     k.onKeyPress('enter', saveName);
 
-    makeBtn(k, t('gameover_play_again'), 240, 420, 280, 52, () => { domInput.remove(); k.go('game'); });
-    makeBtn(k, t('gameover_leaderboard'), 240, 485, 280, 52, () => { domInput.remove(); k.go('leaderboard', { score:finalScore, mode:gameMode }); }, k.rgb(100,80,200));
-    makeBtn(k, t('gameover_menu'), 240, 550, 280, 52, () => { domInput.remove(); k.go('menu'); }, k.rgb(60,140,200));
+    const cleanup = () => {
+      window.removeEventListener('resize', positionInput);
+      const inp = document.getElementById('lr-name-input');
+      if (inp) inp.remove();
+    };
+
+    makeBtn(k, t('gameover_play_again'), 240, 420, 280, 52, () => { cleanup(); k.go('game'); });
+    makeBtn(k, t('gameover_leaderboard'), 240, 485, 280, 52, () => { cleanup(); k.go('leaderboard', { score:finalScore, mode:gameMode }); }, k.rgb(100,80,200));
+    makeBtn(k, t('gameover_menu'), 240, 550, 280, 52, () => { cleanup(); k.go('menu'); }, k.rgb(60,140,200));
 
     const back = k.add([k.rect(110,36,{radius:12}), k.pos(70,60), k.anchor('center'), k.color(220,60,60), k.outline(3,k.rgb(255,220,80)), k.area(), k.z(20)]);
     k.add([k.text(t('gameover_menu'),{size:16}), k.pos(70,60), k.anchor('center'), k.color(255,255,255), k.z(21)]);
-    back.onClick(() => { domInput.remove(); k.go('menu'); });
+    back.onClick(() => { cleanup(); k.go('menu'); });
     back.onHover(() => k.setCursor('pointer')); back.onHoverEnd(() => k.setCursor('default'));
 
-    k.onSceneLeave(() => { const inp = document.getElementById('lr-name-input'); if (inp) inp.remove(); });
+    k.onSceneLeave(cleanup);
   });
 
   // ══════════════════════════════════════════════════════════════════════════
