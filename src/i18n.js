@@ -33,12 +33,18 @@ export const i18n = {
     tutorial_3_precision:   'PRECISIÓN\nMenos spin',
     tutorial_3_perfectzone: 'PERFECT ZONE\nTodo es PERFECT',
     tutorial_3_doble:       'DOBLE O NADA\nx2 score, más velocidad',
-    tutorial_3_fuego:       'FUEGO\nCombo rápido, reset total',
+    tutorial_3_fuego:       'FUEGO\nCada toque suma +combo pts extra.\nMás rally = más puntos.',
 
     tutorial_4_title: 'TIPS',
     tutorial_4_line1: 'Toca cerca del centro para control máximo.',
     tutorial_4_line2: 'Los powerups flotan 3 segundos — ¡no los pierdas!',
     tutorial_4_line3: 'La pelota se vuelve más inestable con el tiempo.',
+
+    tutorial_5_title: 'CONTROLES DEL MENÚ',
+    tutorial_5_lang:  'Cambia el idioma entre español e inglés.',
+    tutorial_5_comp:  '⚡ Powerups activos  /  🏆 Modo competitivo sin powerups.',
+    tutorial_5_music: 'Silencia o activa la música de fondo.',
+    tutorial_5_night: 'Alterna entre modo día y modo noche.',
 
     // HUD
     game_score: 'Score',
@@ -115,12 +121,18 @@ export const i18n = {
     tutorial_3_precision:   'PRECISION\nLess spin',
     tutorial_3_perfectzone: 'PERFECT ZONE\nAll hits = PERFECT',
     tutorial_3_doble:       'DOBLE O NADA\nx2 score, more speed',
-    tutorial_3_fuego:       'FUEGO\nFast combo, full reset',
+    tutorial_3_fuego:       'FUEGO\nEach touch adds +combo bonus pts.\nLonger rally = more points.',
 
     tutorial_4_title: 'TIPS',
     tutorial_4_line1: 'Tap near center for maximum control.',
     tutorial_4_line2: 'Powerups float for 3 seconds — grab them!',
     tutorial_4_line3: 'The ball gets harder to control over time.',
+
+    tutorial_5_title: 'MENU CONTROLS',
+    tutorial_5_lang:  'Switch language between Spanish and English.',
+    tutorial_5_comp:  '⚡ Powerups on  /  🏆 Competitive mode, no powerups.',
+    tutorial_5_music: 'Mute or unmute background music.',
+    tutorial_5_night: 'Toggle between day and night mode.',
 
     // HUD
     game_score: 'Score',

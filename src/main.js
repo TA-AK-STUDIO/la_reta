@@ -279,17 +279,13 @@ function createScenes(k, preloadedAssets) {
     compBtn.onClick(() => { settings.powerupsEnabled = !settings.powerupsEnabled; k.go('menu'); });
     compBtn.onHover(() => k.setCursor('pointer')); compBtn.onHoverEnd(() => k.setCursor('default'));
 
-    // Logo — ~360px wide on a 480px canvas
+    // Logo — ~280px wide
     const logoY = 160;
-    const logoSc = 360 / 1536;
+    const logoSc = 280 / 1536;
     k.add([k.sprite('logo'), k.pos(240, logoY), k.anchor('center'), k.scale(logoSc), k.z(2)]);
 
     // High score
-    const hs = loadHighScore();
-    const hsY = logoY + 75;
-    if (hs > 0) {
-      k.add([k.text(t('menu_high_score')(hs), {size:18}), k.pos(240, hsY), k.anchor('center'), k.color(255,220,80), k.z(2)]);
-    }
+    const hsY = logoY + 60;
 
     const playBtnY = 770;
     const playBtnH = 70;
@@ -323,7 +319,7 @@ function createScenes(k, preloadedAssets) {
     k.add([k.rect(460,820,{radius:18}), k.pos(240,427), k.anchor('center'), k.color(26,10,46), k.opacity(0.88), k.z(1)]);
 
     let page = 0;
-    const TOTAL = 5;
+    const TOTAL = 6;
     const pageObjs = [];
     const clearPage = () => { while (pageObjs.length) { try { k.destroy(pageObjs.pop()); } catch {} } };
     const addObj = (o) => { pageObjs.push(o); return o; };
@@ -416,8 +412,24 @@ function createScenes(k, preloadedAssets) {
         addObj(k.add([k.text([t('tutorial_4_line1'),'',t('tutorial_4_line2'),'',t('tutorial_4_line3')].join('\n'),
           {size:19,width:400,lineSpacing:12,align:'center'}), k.pos(240,430), k.anchor('center'), k.color(230,240,255), k.z(3)]));
       }
-    }
+      else if (page === 5) {
+        // Home screen controls explanation
+        addObj(k.add([k.text(t('tutorial_5_title'),{size:26}), k.pos(240,110), k.anchor('center'), k.color(255,220,80), k.z(3)]));
 
+        const rows = [
+          { icon:'ES/EN', col:k.rgb(180,160,255), label:t('tutorial_5_lang')   },
+          { icon:'⚡/🏆', col:k.rgb(255,200,80),  label:t('tutorial_5_comp')   },
+          { icon:'🎵/🔇', col:k.rgb(100,220,255), label:t('tutorial_5_music')  },
+          { icon:'🌙/☀️', col:k.rgb(180,220,255), label:t('tutorial_5_night')  },
+        ];
+        rows.forEach((r, i) => {
+          const y = 240 + i * 110;
+          addObj(k.add([k.rect(70,50,{radius:12}), k.pos(70,y), k.anchor('center'), k.color(40,30,60), k.outline(2,r.col), k.z(3)]));
+          addObj(k.add([k.text(r.icon,{size:18}), k.pos(70,y), k.anchor('center'), k.color(255,255,255), k.z(4)]));
+          addObj(k.add([k.text(r.label,{size:16,width:300,align:'left'}), k.pos(130,y), k.anchor('left'), k.color(230,240,255), k.z(3)]));
+        });
+      }
+    }
     const closeBtn = k.add([k.rect(52,52,{radius:16}), k.pos(440,80), k.anchor('center'), k.color(220,60,60), k.outline(4,k.rgb(255,220,80)), k.area(), k.z(10)]);
     k.add([k.text('✕',{size:28}), k.pos(440,80), k.anchor('center'), k.color(255,255,255), k.z(11)]);
     closeBtn.onClick(() => k.go('menu'));
@@ -557,17 +569,23 @@ function createScenes(k, preloadedAssets) {
       const spinFactor = precisionActive ? 0.25 : 1.0;
       ballSpin = (offsetX / BALL_RADIUS) * 200 * spinFactor;
 
-      // Score
+      // Score: +1 per touch + combo multiplier + fuego bonus
       combo++;
-      const comboMult = fuegoActive ? Math.min(combo * 0.5, 5) : Math.min(1 + (combo - 1) * 0.12, 3);
+      const comboMult = Math.min(1 + (combo - 1) * 0.12, 3);
       const dobleBonus = dobleActive ? 2 : 1;
-      const earned = Math.round(1 * comboMult * dobleBonus);
+      const fuegoBonus = fuegoActive ? combo : 0;  // +combo extra points per touch
+      const earned = Math.round(1 * comboMult * dobleBonus) + fuegoBonus;
       score += earned;
 
       scoreText.text = `${t('game_score')}: ${score}`;
       comboText.text = combo > 1 ? `${t('game_combo')} x${combo}` : '';
 
-      spawnParticles(ballX, ballY, k.rgb(255,220,80));
+      // Fuego: fire trail particles
+      if (fuegoActive) {
+        spawnParticles(ballX, ballY, k.rgb(255, 100, 0));
+      } else {
+        spawnParticles(ballX, ballY, k.rgb(255,220,80));
+      }
       playSFX('kick');
 
       if (combo > 1 && combo % 3 === 0) {
@@ -703,7 +721,7 @@ function createScenes(k, preloadedAssets) {
       if (precisionTimer > 0)   { precisionTimer -= dt;   if (precisionTimer <= 0)   { precisionActive = false;   precisionTimer = 0;   refreshPowerupHUD(); } }
       if (perfectZoneTimer > 0) { perfectZoneTimer -= dt; if (perfectZoneTimer <= 0) { perfectZoneActive = false; perfectZoneTimer = 0; refreshPowerupHUD(); } }
       if (dobleTimer > 0)       { dobleTimer -= dt;       if (dobleTimer <= 0)       { dobleActive = false;       dobleTimer = 0;       refreshPowerupHUD(); } }
-      if (fuegoTimer > 0)       { fuegoTimer -= dt;       if (fuegoTimer <= 0)       { fuegoActive = false;       fuegoTimer = 0;       refreshPowerupHUD(); } }
+      if (fuegoTimer > 0) { fuegoTimer -= dt; if (fuegoTimer <= 0) { fuegoActive = false; fuegoTimer = 0; refreshPowerupHUD(); } }
 
       // Refresh countdown display every frame while any timed powerup is active
       if (precisionActive || perfectZoneActive || dobleActive || fuegoActive) refreshPowerupHUD();
@@ -757,7 +775,7 @@ function createScenes(k, preloadedAssets) {
           playSFX('rebote');
           refreshPowerupHUD();
         } else {
-          if (fuegoActive) { combo = 0; fuegoActive = false; fuegoTimer = 0; refreshPowerupHUD(); }
+          if (fuegoActive) { fuegoActive = false; fuegoTimer = 0; refreshPowerupHUD(); }
           endGame();
         }
       }
