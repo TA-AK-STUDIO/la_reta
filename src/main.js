@@ -684,9 +684,72 @@ function createScenes(k, preloadedAssets) {
       refreshPowerupHUD();
     }
 
+    // ── Viento y Lluvia ──
+    let windActive = false;
+    let windTimer = 0;
+    let windForce = 0;          // px/s² horizontal
+    let windNextIn = 25;        // segundos hasta próxima ráfaga
+    const windObjs = [];        // flechas visuales
+
+    let rainActive = false;
+    let rainTimer = 0;
+    let rainNextIn = 35;
+    const rainDrops = [];       // partículas de lluvia
+    let rainSpawnT = 0;
+    const RAIN_GRAVITY_BONUS = 500;  // gravedad extra durante lluvia
+
+    // Indicador de viento — flechas en pantalla
+    function showWindIndicator(dir) {
+      windObjs.forEach(o => { try { k.destroy(o); } catch {} });
+      windObjs.length = 0;
+      const arrow = dir > 0 ? '→→→' : '←←←';
+      const col = dir > 0 ? k.rgb(180,220,255) : k.rgb(255,200,120);
+      for (let i = 0; i < 3; i++) {
+        const y = 200 + i * 180;
+        const obj = k.add([k.text(arrow, {size:28}), k.pos(240, y), k.anchor('center'),
+          k.color(col), k.opacity(0.35), k.z(8), { t: i * 0.3 }]);
+        obj.onUpdate(() => {
+          obj.t += k.dt() * 1.5;
+          obj.opacity = 0.15 + Math.sin(obj.t) * 0.2;
+        });
+        windObjs.push(obj);
+      }
+    }
+
+    function clearWindIndicator() {
+      windObjs.forEach(o => { try { k.destroy(o); } catch {} });
+      windObjs.length = 0;
+    }
+
+    function spawnRainDrop() {
+      const x = k.rand(0, 480);
+      const drop = k.add([
+        k.rect(2, k.rand(10, 18)),
+        k.pos(x, 90),
+        k.anchor('center'),
+        k.color(150, 200, 255),
+        k.opacity(k.rand(0.3, 0.6)),
+        k.z(7),
+        { vy: k.rand(400, 600), vx: windActive ? windForce * 0.05 : 0 },
+      ]);
+      drop.onUpdate(() => {
+        drop.pos.y += drop.vy * k.dt();
+        drop.pos.x += drop.vx * k.dt();
+        if (drop.pos.y > GROUND_Y) { k.destroy(drop); rainDrops.splice(rainDrops.indexOf(drop), 1); }
+      });
+      rainDrops.push(drop);
+    }
+
+    function clearRain() {
+      rainDrops.forEach(o => { try { k.destroy(o); } catch {} });
+      rainDrops.length = 0;
+    }
+
     function endGame() {
       if (gameOver) return;
       gameOver = true;
+      clearWindIndicator();
+      clearRain();
       playSFX('fail');
       spawnParticles(ballX, ballY, k.rgb(255,80,80));
       stopMusic();
@@ -737,7 +800,49 @@ function createScenes(k, preloadedAssets) {
       // Ball physics — solo corre después del primer toque
       if (!gameStarted) return;
 
-      ballVY += GRAVITY * dt;
+      // ── Viento ──
+      windNextIn -= dt;
+      if (windNextIn <= 0 && !windActive) {
+        windActive = true;
+        windTimer = k.rand(3, 5);
+        // Fuerza escala con tiempo de juego
+        const intensity = Math.min(1 + elapsed / 60, 3);
+        windForce = (Math.random() > 0.5 ? 1 : -1) * k.rand(120, 220) * intensity;
+        windNextIn = k.rand(20, 35) / Math.min(1 + elapsed / 90, 2);
+        showWindIndicator(windForce);
+        showToast(windForce > 0 ? '💨 Viento →' : '💨 Viento ←', k.rgb(180,220,255));
+      }
+      if (windActive) {
+        windTimer -= dt;
+        ballVX += windForce * dt;
+        if (windTimer <= 0) {
+          windActive = false;
+          windForce = 0;
+          clearWindIndicator();
+        }
+      }
+
+      // ── Lluvia ──
+      rainNextIn -= dt;
+      if (rainNextIn <= 0 && !rainActive) {
+        rainActive = true;
+        rainTimer = k.rand(4, 6);
+        rainNextIn = k.rand(25, 45) / Math.min(1 + elapsed / 90, 2);
+        showToast('🌧 Lluvia — balón más pesado', k.rgb(150,200,255));
+      }
+      if (rainActive) {
+        rainTimer -= dt;
+        // Spawn drops
+        rainSpawnT += dt;
+        if (rainSpawnT > 0.04) { rainSpawnT = 0; spawnRainDrop(); }
+        if (rainTimer <= 0) {
+          rainActive = false;
+          clearRain();
+        }
+      }
+
+      const effectiveGravity = GRAVITY + (rainActive ? RAIN_GRAVITY_BONUS : 0);
+      ballVY += effectiveGravity * dt;
 
       // Instability — crece con el tiempo
       const instability = Math.min(elapsed * 0.4, 50);
