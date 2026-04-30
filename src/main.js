@@ -450,10 +450,17 @@ function createScenes(k, preloadedAssets) {
     let ballVY = 0;
     let ballSpin = 0;
     let ballRotation = 0;
-    const BALL_RADIUS = 55;
-    const BALL_SCALE = 110 / 1536;
+    // ball.png: 1536x1024, content bbox x: 289-1247 (958px wide), y: 16-1009 (~993px tall)
+    // Target ball diameter on screen: 90px
+    // Content width in sprite: 958px → scale = 90/958 = 0.094
+    // At that scale, full sprite renders as: 1536*0.094=144px wide, 1024*0.094=96px tall
+    // Content renders as: 958*0.094≈90px wide, 993*0.094≈93px tall → ~90px diameter ✓
+    const BALL_DIAMETER = 90;
+    const BALL_SCALE = BALL_DIAMETER / 958;
+    const BALL_RADIUS = BALL_DIAMETER / 2;  // 45px — matches visual size
     const GRAVITY = 980;
     const GROUND_Y = 854 - 50;
+    const CEILING_Y = 90 + BALL_RADIUS;  // below HUD
     let hasRebote = false;
     let precisionActive = false;
     let precisionTimer = 0;
@@ -708,8 +715,8 @@ function createScenes(k, preloadedAssets) {
       // Wall bounce — balón siempre dentro de pantalla
       if (ballX < BALL_RADIUS)           { ballX = BALL_RADIUS;           ballVX =  Math.abs(ballVX) * 0.65; }
       if (ballX > 480 - BALL_RADIUS)     { ballX = 480 - BALL_RADIUS;     ballVX = -Math.abs(ballVX) * 0.65; }
-      if (ballY < BALL_RADIUS + 80)      { ballY = BALL_RADIUS + 80;      ballVY =  Math.abs(ballVY) * 0.55; } // techo = HUD
-      if (ballY > GROUND_Y - BALL_RADIUS){ ballY = GROUND_Y - BALL_RADIUS; } // suelo — lo maneja ground check
+      if (ballY < CEILING_Y)             { ballY = CEILING_Y;             ballVY =  Math.abs(ballVY) * 0.55; }
+      if (ballY > GROUND_Y - BALL_RADIUS){ ballY = GROUND_Y - BALL_RADIUS; }
 
       // Spin
       ballRotation += ballSpin * dt;
