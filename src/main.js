@@ -58,7 +58,7 @@ function initGame(preloadedAssets) {
   k.loadSprite('background_day',   '/assets/background_day.png');
   k.loadSprite('background_night', '/assets/background_night.png');
   k.loadSprite('logo',    '/assets/logo.png');
-  k.loadSprite('player',  '/assets/player.png');
+  k.loadSprite('player',  '/assets/Jugador.png');
   k.loadSprite('ball',    '/assets/ball.png');
   // Powerups
   k.loadSprite('pu_rebote',      '/assets/PowerUps/pu_rebote.png');
