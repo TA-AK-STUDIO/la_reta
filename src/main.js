@@ -319,7 +319,7 @@ function createScenes(k, preloadedAssets) {
     k.add([k.rect(460,820,{radius:18}), k.pos(240,427), k.anchor('center'), k.color(26,10,46), k.opacity(0.88), k.z(1)]);
 
     let page = 0;
-    const TOTAL = 6;
+    const TOTAL = 7;
     const pageObjs = [];
     const clearPage = () => { while (pageObjs.length) { try { k.destroy(pageObjs.pop()); } catch {} } };
     const addObj = (o) => { pageObjs.push(o); return o; };
@@ -328,28 +328,25 @@ function createScenes(k, preloadedAssets) {
       clearPage();
       addObj(k.add([k.text(`${page+1}/${TOTAL}`,{size:16}), k.pos(240,760), k.anchor('center'), k.color(255,255,255), k.opacity(0.6), k.z(3)]));
 
+      // PAGE 0 — Cómo jugar
       if (page === 0) {
         addObj(k.add([k.text(t('tutorial_0_title'),{size:28}), k.pos(240,160), k.anchor('center'), k.color(255,220,80), k.z(3)]));
         addObj(k.add([k.text([t('tutorial_0_line1'),t('tutorial_0_line2'),'',t('tutorial_0_line3')].join('\n'),
           {size:20,width:400,lineSpacing:12,align:'center'}), k.pos(240,430), k.anchor('center'), k.color(230,240,255), k.z(3)]));
         addObj(k.add([k.sprite('ball'), k.pos(240,290), k.anchor('center'), k.scale(80/1536), k.z(4)]));
       }
+
+      // PAGE 1 — Puntuación
       else if (page === 1) {
         addObj(k.add([k.text(t('tutorial_1_title'),{size:28}), k.pos(240,160), k.anchor('center'), k.color(255,220,80), k.z(3)]));
         addObj(k.add([k.text([t('tutorial_1_line1'),t('tutorial_1_line2'),t('tutorial_1_line3'),'',t('tutorial_1_line4')].join('\n'),
           {size:18,width:400,lineSpacing:12,align:'center'}), k.pos(240,430), k.anchor('center'), k.color(230,240,255), k.z(3)]));
       }
+
+      // PAGE 2 — Física del balón
       else if (page === 2) {
-        // Layout: título y=110, balón centrado y=330, flechas izq/der a los lados,
-        // flecha abajo llega a y=480, gravedad top-right, hitbox label y=680
-
         addObj(k.add([k.text(t('tutorial_2_title'),{size:26}), k.pos(240,110), k.anchor('center'), k.color(255,220,80), k.z(3)]));
-
-        const BX = 240, BY = 330;
-        const BR = 52;
-        const BSC = (BR*2) / 1536;
-
-        // Helper: arrow from ball EDGE to tip
+        const BX = 240, BY = 330, BR = 52, BSC = (BR*2) / 1536;
         function addArrow(angleDeg, tipX, tipY, col, label, labelX, labelY) {
           const rad = angleDeg * Math.PI / 180;
           const startX = BX + Math.cos(rad) * (BR + 4);
@@ -362,30 +359,28 @@ function createScenes(k, preloadedAssets) {
           addObj(k.add([k.circle(8), k.pos(tipX, tipY), k.anchor('center'), k.color(255,255,255), k.opacity(0.9), k.z(3)]));
           if (label) addObj(k.add([k.text(label,{size:13,width:110,align:'center'}), k.pos(labelX, labelY), k.anchor('center'), k.color(col), k.z(3)]));
         }
-
-        // Roja: sale borde inferior-DERECHO → va arriba-IZQUIERDA  \
-        addArrow(45, BX-110, BY-110, k.rgb(255,100,100), t('tutorial_2_left'), BX-148, BY-138);
-
-        // Azul: sale borde inferior-IZQUIERDO → va arriba-DERECHA  /
+        addArrow(45,  BX-110, BY-110, k.rgb(255,100,100), t('tutorial_2_left'),  BX-148, BY-138);
         addArrow(135, BX+110, BY-110, k.rgb(100,200,255), t('tutorial_2_right'), BX+148, BY-138);
-
-        // Verde → recto arriba |
-        addArrow(90, BX, BY+160, k.rgb(120,255,120), t('tutorial_2_below'), 240, 545);
-
-        // Gravedad — centrado arriba
-        addObj(k.add([k.text('↓ ' + t('tutorial_2_gravity'),{size:13,width:100,align:'center'}), k.pos(240, 180), k.anchor('center'), k.color(255,180,60), k.opacity(0.9), k.z(3)]));
-
-        // Ball on top (z:6)
+        addArrow(90,  BX, BY+160,     k.rgb(120,255,120), t('tutorial_2_below'), 240, 545);
+        addObj(k.add([k.text('↓ ' + t('tutorial_2_gravity'),{size:13,width:100,align:'center'}), k.pos(240,180), k.anchor('center'), k.color(255,180,60), k.opacity(0.9), k.z(3)]));
         addObj(k.add([k.sprite('ball'), k.pos(BX, BY), k.anchor('center'), k.scale(BSC), k.z(6)]));
-
-        // Hitbox ring
         addObj(k.add([k.circle(BR+18), k.pos(BX, BY), k.anchor('center'), k.color(255,220,80), k.opacity(0), k.outline(2, k.rgb(255,220,80)), k.z(7)]));
-
-        // Hitbox label — bien abajo, zona libre
-        addObj(k.add([k.text(t('tutorial_2_hitbox'),{size:14,width:340,align:'center'}), k.pos(240, 680), k.anchor('center'), k.color(255,255,255), k.opacity(0.7), k.z(3)]));
+        addObj(k.add([k.text(t('tutorial_2_hitbox'),{size:14,width:340,align:'center'}), k.pos(240,680), k.anchor('center'), k.color(255,255,255), k.opacity(0.7), k.z(3)]));
       }
+
+      // PAGE 3 — Viento y Lluvia
       else if (page === 3) {
-        // Powerups page — use actual sprites
+        addObj(k.add([k.text(t('tutorial_6_title'),{size:26}), k.pos(240,110), k.anchor('center'), k.color(255,220,80), k.z(3)]));
+        addObj(k.add([k.text('💨 ' + t('tutorial_6_wind_title'),{size:20}), k.pos(240,210), k.anchor('center'), k.color(180,220,255), k.z(3)]));
+        addObj(k.add([k.text(t('tutorial_6_wind_body'),{size:16,width:400,lineSpacing:8,align:'center'}), k.pos(240,280), k.anchor('center'), k.color(220,235,255), k.z(3)]));
+        addObj(k.add([k.text('←←←  ⚽  →→→',{size:22}), k.pos(240,360), k.anchor('center'), k.color(180,220,255), k.opacity(0.7), k.z(3)]));
+        addObj(k.add([k.text('🌧 ' + t('tutorial_6_rain_title'),{size:20}), k.pos(240,440), k.anchor('center'), k.color(150,200,255), k.z(3)]));
+        addObj(k.add([k.text(t('tutorial_6_rain_body'),{size:16,width:400,lineSpacing:8,align:'center'}), k.pos(240,510), k.anchor('center'), k.color(220,235,255), k.z(3)]));
+        addObj(k.add([k.text(t('tutorial_6_tip'),{size:15,width:400,align:'center'}), k.pos(240,620), k.anchor('center'), k.color(255,220,80), k.opacity(0.8), k.z(3)]));
+      }
+
+      // PAGE 4 — Powerups
+      else if (page === 4) {
         addObj(k.add([k.text(t('tutorial_3_title'),{size:28}), k.pos(240,100), k.anchor('center'), k.color(255,220,80), k.z(3)]));
         const pups = [
           { sprite:'pu_rebote',      label:t('tutorial_3_rebote'),      color:k.rgb(100,200,255) },
@@ -400,27 +395,27 @@ function createScenes(k, preloadedAssets) {
           row.forEach((idx, ci) => {
             const x = 240 - (row.length-1)*80 + ci*160;
             const p = pups[idx];
-            // Sprite icon: 1536x1024, target ~60px tall
-            const TU_PU_SCALE = 60 / 1024;
-            addObj(k.add([k.sprite(p.sprite), k.pos(x, y), k.anchor('center'), k.scale(TU_PU_SCALE), k.z(4)]));
+            addObj(k.add([k.sprite(p.sprite), k.pos(x, y), k.anchor('center'), k.scale(60/1024), k.z(4)]));
             addObj(k.add([k.text(p.label,{size:13,width:140,align:'center'}), k.pos(x, y+52), k.anchor('center'), k.color(p.color), k.z(3)]));
           });
         });
       }
-      else if (page === 4) {
+
+      // PAGE 5 — Tips
+      else if (page === 5) {
         addObj(k.add([k.text(t('tutorial_4_title'),{size:28}), k.pos(240,160), k.anchor('center'), k.color(255,220,80), k.z(3)]));
         addObj(k.add([k.text([t('tutorial_4_line1'),'',t('tutorial_4_line2'),'',t('tutorial_4_line3')].join('\n'),
           {size:19,width:400,lineSpacing:12,align:'center'}), k.pos(240,430), k.anchor('center'), k.color(230,240,255), k.z(3)]));
       }
-      else if (page === 5) {
-        // Home screen controls explanation
-        addObj(k.add([k.text(t('tutorial_5_title'),{size:26}), k.pos(240,110), k.anchor('center'), k.color(255,220,80), k.z(3)]));
 
+      // PAGE 6 — Controles del menú
+      else if (page === 6) {
+        addObj(k.add([k.text(t('tutorial_5_title'),{size:26}), k.pos(240,110), k.anchor('center'), k.color(255,220,80), k.z(3)]));
         const rows = [
-          { icon:'ES/EN', col:k.rgb(180,160,255), label:t('tutorial_5_lang')   },
-          { icon:'⚡/🏆', col:k.rgb(255,200,80),  label:t('tutorial_5_comp')   },
-          { icon:'🎵/🔇', col:k.rgb(100,220,255), label:t('tutorial_5_music')  },
-          { icon:'🌙/☀️', col:k.rgb(180,220,255), label:t('tutorial_5_night')  },
+          { icon:'ES/EN', col:k.rgb(180,160,255), label:t('tutorial_5_lang')  },
+          { icon:'⚡/🏆', col:k.rgb(255,200,80),  label:t('tutorial_5_comp')  },
+          { icon:'🎵/🔇', col:k.rgb(100,220,255), label:t('tutorial_5_music') },
+          { icon:'🌙/☀️', col:k.rgb(180,220,255), label:t('tutorial_5_night') },
         ];
         rows.forEach((r, i) => {
           const y = 240 + i * 110;
