@@ -48,7 +48,7 @@ function initGame(preloadedAssets) {
     pixelDensity: Math.min(window.devicePixelRatio || 1, 2),
     crisp: false,
     texFilter: 'linear',
-    touchToMouse: false,
+    touchToMouse: true,
     debug: false,
   });
 
@@ -695,17 +695,11 @@ function createScenes(k, preloadedAssets) {
     }
 
     // ── Input ──
-    // touchToMouse:true hace que touch dispare también onClick.
-    // El cooldown en kickBall (150ms) previene el doble disparo.
+    // touchToMouse:true convierte touch a mouse — onClick funciona en móvil y desktop.
+    // kickLock previene doble disparo si algún evento extra llega.
     k.onClick(() => {
       if (paused || modalOpen) return;
       const pos = k.mousePos();
-      if (pos.y < 80 && pos.x > 330) return;
-      kickBall(pos.x, pos.y);
-    });
-
-    k.onTouchStart((id, pos) => {
-      if (paused || modalOpen) return;
       if (pos.y < 80 && pos.x > 330) return;
       kickBall(pos.x, pos.y);
     });
