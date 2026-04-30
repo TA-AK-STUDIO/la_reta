@@ -555,14 +555,15 @@ function createScenes(k, preloadedAssets) {
       kickLock = true;
       setTimeout(() => { kickLock = false; }, 200);
 
-      // Hitbox visual — ring expands and fades at tap point
-      const hitRing = k.add([k.circle(KICK_HITBOX), k.pos(tapX, tapY), k.anchor('center'),
-        k.color(255,255,255), k.opacity(0.45), k.outline(3, k.rgb(255,220,80)), k.z(150), { t:0 }]);
+      // Hitbox visual — small finger-sized ring at tap point
+      const FINGER_R = 18;
+      const hitRing = k.add([k.circle(FINGER_R), k.pos(tapX, tapY), k.anchor('center'),
+        k.color(255,255,255), k.opacity(0.6), k.outline(2, k.rgb(255,220,80)), k.z(150), { t:0 }]);
       hitRing.onUpdate(() => {
         hitRing.t += k.dt();
-        hitRing.opacity = Math.max(0, 0.45 - hitRing.t * 2.2);
-        hitRing.radius = KICK_HITBOX * (1 + hitRing.t * 0.6);
-        if (hitRing.t > 0.3) k.destroy(hitRing);
+        hitRing.opacity = Math.max(0, 0.6 - hitRing.t * 3);
+        hitRing.radius = FINGER_R * (1 + hitRing.t * 1.2);
+        if (hitRing.t > 0.25) k.destroy(hitRing);
       });
 
       const offsetX = tapX - ballX;
