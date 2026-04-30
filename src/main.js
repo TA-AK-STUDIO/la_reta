@@ -95,6 +95,7 @@ function createScenes(k, preloadedAssets) {
 
   // ── Music ──
   const TRACKS = ['/assets/music_day.mp3', '/assets/music_night.mp3'];
+  let trackIndex = 0;
   let bgMusic = null;
   let musicStarted = false;
 
@@ -102,7 +103,8 @@ function createScenes(k, preloadedAssets) {
     stopMusic();
     musicStarted = true;
     try {
-      const track = TRACKS[Math.floor(Math.random() * TRACKS.length)];
+      const track = TRACKS[trackIndex % TRACKS.length];
+      trackIndex++;
       bgMusic = new Audio(track);
       bgMusic.volume = settings.musicVolume;
       bgMusic.loop = false;
@@ -391,12 +393,12 @@ function createScenes(k, preloadedAssets) {
         ];
         const rows = [[0,1,2],[3,4]];
         rows.forEach((row, ri) => {
-          const y = 270 + ri * 200;
+          const y = 260 + ri * 210;
           row.forEach((idx, ci) => {
             const x = 240 - (row.length-1)*80 + ci*160;
             const p = pups[idx];
             addObj(k.add([k.sprite(p.sprite), k.pos(x, y), k.anchor('center'), k.scale(60/1024), k.z(4)]));
-            addObj(k.add([k.text(p.label,{size:13,width:140,align:'center'}), k.pos(x, y+52), k.anchor('center'), k.color(p.color), k.z(3)]));
+            addObj(k.add([k.text(p.label,{size:12,width:140,align:'center'}), k.pos(x, y+56), k.anchor('center'), k.color(p.color), k.z(3)]));
           });
         });
       }
@@ -553,6 +555,16 @@ function createScenes(k, preloadedAssets) {
       kickLock = true;
       setTimeout(() => { kickLock = false; }, 200);
 
+      // Hitbox visual — ring expands and fades at tap point
+      const hitRing = k.add([k.circle(KICK_HITBOX), k.pos(tapX, tapY), k.anchor('center'),
+        k.color(255,255,255), k.opacity(0.45), k.outline(3, k.rgb(255,220,80)), k.z(150), { t:0 }]);
+      hitRing.onUpdate(() => {
+        hitRing.t += k.dt();
+        hitRing.opacity = Math.max(0, 0.45 - hitRing.t * 2.2);
+        hitRing.radius = KICK_HITBOX * (1 + hitRing.t * 0.6);
+        if (hitRing.t > 0.3) k.destroy(hitRing);
+      });
+
       const offsetX = tapX - ballX;
       const offsetY = tapY - ballY;
       const baseForce = 680 + elapsed * 1.5 * diffMult();
@@ -587,7 +599,7 @@ function createScenes(k, preloadedAssets) {
       }
       playSFX('kick');
 
-      if (combo > 1 && combo % 3 === 0) {
+      if (combo > 1 && combo % 10 === 0) {
         showToast(t('toast_combo')(combo), k.rgb(255,140,0));
         playSFX('combo');
       }
@@ -662,6 +674,7 @@ function createScenes(k, preloadedAssets) {
         precisionTimer = 5;
         showToast(t('toast_precision'), k.rgb(100,255,180));
       } else if (key === 'perfectzone') {
+        // ZONA LIBRE — gravedad cero por 5s
         perfectZoneActive = true;
         perfectZoneTimer = 5;
         showToast(t('toast_perfectzone'), k.rgb(255,220,0));
@@ -836,8 +849,10 @@ function createScenes(k, preloadedAssets) {
         }
       }
 
-      const effectiveGravity = GRAVITY + (rainActive ? RAIN_GRAVITY_BONUS : 0);
+      const effectiveGravity = rainActive ? GRAVITY + RAIN_GRAVITY_BONUS : perfectZoneActive ? 0 : GRAVITY;
       ballVY += effectiveGravity * dt;
+      // Zona libre: amortigua también la velocidad vertical para que flote
+      if (perfectZoneActive) ballVY *= 0.92;
 
       // Instability — crece con el tiempo
       const instability = Math.min(elapsed * 0.4, 50);

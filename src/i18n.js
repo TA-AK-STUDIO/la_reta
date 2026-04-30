@@ -1,12 +1,10 @@
 // i18n translations for La Reta
 export const i18n = {
   es: {
-    // Menú
     menu_play: 'JUGAR',
     menu_how_to_play: 'CÓMO JUGAR',
     menu_high_score: (n) => `Mejor puntuación: ${n}`,
 
-    // Tutorial
     tutorial_next: 'SIGUIENTE',
     tutorial_back: 'VOLVER',
 
@@ -31,14 +29,20 @@ export const i18n = {
     tutorial_3_title: 'POWERUPS',
     tutorial_3_rebote:      'REBOTE\nSalva una caída',
     tutorial_3_precision:   'PRECISIÓN\nMenos spin',
-    tutorial_3_perfectzone: 'PERFECT ZONE\nTodo es PERFECT',
+    tutorial_3_perfectzone: 'ZONA LIBRE\nGravedad cero (5s)',
     tutorial_3_doble:       'DOBLE O NADA\nx2 score, más velocidad',
-    tutorial_3_fuego:       'FUEGO\nCada toque suma +combo pts extra.\nMás rally = más puntos.',
+    tutorial_3_fuego:       'FUEGO\n+combo pts por toque',
 
     tutorial_4_title: 'TIPS',
     tutorial_4_line1: 'Toca cerca del centro para control máximo.',
     tutorial_4_line2: 'Los powerups flotan 3 segundos — ¡no los pierdas!',
     tutorial_4_line3: 'La pelota se vuelve más inestable con el tiempo.',
+
+    tutorial_5_title: 'OPCIONES DEL MENÚ',
+    tutorial_5_lang:  'Cambia el idioma entre español e inglés.',
+    tutorial_5_comp:  '⚡ Powerups activos  /  🏆 Modo competitivo sin powerups.',
+    tutorial_5_music: 'Silencia o activa la música de fondo.',
+    tutorial_5_night: 'Alterna entre modo día y modo noche.',
 
     tutorial_6_title:      'VIENTO Y LLUVIA',
     tutorial_6_wind_title: 'Viento',
@@ -46,36 +50,23 @@ export const i18n = {
     tutorial_6_rain_title: 'Lluvia',
     tutorial_6_rain_body:  'La lluvia hace el balón más pesado.\nCae más rápido y es más difícil de controlar.\nDura unos segundos y desaparece.',
     tutorial_6_tip:        '⚡ Ambos pueden ocurrir al mismo tiempo.',
-    tutorial_5_lang:  'Cambia el idioma entre español e inglés.',
-    tutorial_5_comp:  '⚡ Powerups activos  /  🏆 Modo competitivo sin powerups.',
-    tutorial_5_music: 'Silencia o activa la música de fondo.',
-    tutorial_5_night: 'Alterna entre modo día y modo noche.',
 
-    // HUD
     game_score: 'Score',
     game_combo: 'Combo',
     game_pause: 'PAUSA',
     game_pause_continue: 'CONTINUAR',
     game_pause_quit: 'ABANDONAR',
 
-    // Settings
     settings_title: 'CONFIGURACIÓN',
 
-    // Hit types
-    hit_normal: 'NORMAL',
-    hit_good: 'GOOD!',
-    hit_perfect: '⚽ PERFECT!',
-
-    // Powerup toasts
     toast_rebote: '🛡 REBOTE — próxima caída salvada',
     toast_precision: '🎯 PRECISIÓN — menos spin (5s)',
-    toast_perfectzone: '⭐ PERFECT ZONE (5s)',
+    toast_perfectzone: '⭐ ZONA LIBRE — gravedad cero (5s)',
     toast_doble: '💰 DOBLE O NADA — x2 score!',
     toast_fuego: '🔥 FUEGO — combo turbo!',
     toast_saved: '🛡 ¡SALVADO!',
     toast_combo: (n) => `🔥 COMBO x${n}`,
 
-    // Game Over
     gameover_title: 'GAME OVER',
     gameover_score: (n) => `Puntuación: ${n}`,
     gameover_high_score: (n) => `Mejor: ${n}`,
@@ -87,19 +78,16 @@ export const i18n = {
     gameover_error: 'Error al guardar',
     gameover_leaderboard: 'LEADERBOARD',
 
-    // Leaderboard
     leaderboard_loading: 'Cargando...',
     leaderboard_error: 'Error al cargar',
     leaderboard_empty: 'Sin registros aún.\n¡Sé el primero!',
   },
 
   en: {
-    // Menu
     menu_play: 'PLAY',
     menu_how_to_play: 'HOW TO PLAY',
     menu_high_score: (n) => `Best score: ${n}`,
 
-    // Tutorial
     tutorial_next: 'NEXT',
     tutorial_back: 'BACK',
 
@@ -124,14 +112,20 @@ export const i18n = {
     tutorial_3_title: 'POWERUPS',
     tutorial_3_rebote:      'REBOTE\nSaves next fail',
     tutorial_3_precision:   'PRECISION\nLess spin',
-    tutorial_3_perfectzone: 'PERFECT ZONE\nAll hits = PERFECT',
+    tutorial_3_perfectzone: 'ZONA LIBRE\nZero gravity (5s)',
     tutorial_3_doble:       'DOBLE O NADA\nx2 score, more speed',
-    tutorial_3_fuego:       'FUEGO\nEach touch adds +combo bonus pts.\nLonger rally = more points.',
+    tutorial_3_fuego:       'FUEGO\n+combo pts per touch',
 
     tutorial_4_title: 'TIPS',
     tutorial_4_line1: 'Tap near center for maximum control.',
     tutorial_4_line2: 'Powerups float for 3 seconds — grab them!',
     tutorial_4_line3: 'The ball gets harder to control over time.',
+
+    tutorial_5_title: 'MENU OPTIONS',
+    tutorial_5_lang:  'Switch language between Spanish and English.',
+    tutorial_5_comp:  '⚡ Powerups on  /  🏆 Competitive mode, no powerups.',
+    tutorial_5_music: 'Mute or unmute background music.',
+    tutorial_5_night: 'Toggle between day and night mode.',
 
     tutorial_6_title:      'WIND & RAIN',
     tutorial_6_wind_title: 'Wind',
@@ -139,36 +133,23 @@ export const i18n = {
     tutorial_6_rain_title: 'Rain',
     tutorial_6_rain_body:  'Rain makes the ball heavier.\nIt falls faster and is harder to control.\nLasts a few seconds then clears.',
     tutorial_6_tip:        '⚡ Both can happen at the same time.',
-    tutorial_5_lang:  'Switch language between Spanish and English.',
-    tutorial_5_comp:  '⚡ Powerups on  /  🏆 Competitive mode, no powerups.',
-    tutorial_5_music: 'Mute or unmute background music.',
-    tutorial_5_night: 'Toggle between day and night mode.',
 
-    // HUD
     game_score: 'Score',
     game_combo: 'Combo',
     game_pause: 'PAUSE',
     game_pause_continue: 'CONTINUE',
     game_pause_quit: 'QUIT',
 
-    // Settings
     settings_title: 'SETTINGS',
 
-    // Hit types
-    hit_normal: 'NORMAL',
-    hit_good: 'GOOD!',
-    hit_perfect: '⚽ PERFECT!',
-
-    // Powerup toasts
     toast_rebote: '🛡 REBOTE — next fail saved',
     toast_precision: '🎯 PRECISION — less spin (5s)',
-    toast_perfectzone: '⭐ PERFECT ZONE (5s)',
+    toast_perfectzone: '⭐ ZONA LIBRE — zero gravity (5s)',
     toast_doble: '💰 DOBLE O NADA — x2 score!',
     toast_fuego: '🔥 FUEGO — turbo combo!',
     toast_saved: '🛡 SAVED!',
     toast_combo: (n) => `🔥 COMBO x${n}`,
 
-    // Game Over
     gameover_title: 'GAME OVER',
     gameover_score: (n) => `Score: ${n}`,
     gameover_high_score: (n) => `Best: ${n}`,
@@ -180,7 +161,6 @@ export const i18n = {
     gameover_error: 'Error saving',
     gameover_leaderboard: 'LEADERBOARD',
 
-    // Leaderboard
     leaderboard_loading: 'Loading...',
     leaderboard_error: 'Error loading',
     leaderboard_empty: 'No records yet.\nBe the first!',
