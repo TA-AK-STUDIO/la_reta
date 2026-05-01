@@ -97,13 +97,13 @@ function createScenes(k, preloadedAssets) {
 
   // ── Unlock definitions ──
   const UNLOCK_DEFS = [
-    { key: 'ball_azteca',   type: 'ball',  score: 5000,  label: 'Ball Azteca',   sprite: 'ball_azteca'   },
+    { key: 'ball_maya',     type: 'ball',  score: 5000,  label: 'Ball Maya',     sprite: 'ball_maya'     },
     { key: 'bg_city',       type: 'stage', score: 10000, label: 'Ciudad',        sprite: 'bg_city_day'   },
     { key: 'ball_alebrije', type: 'ball',  score: 15000, label: 'Ball Alebrije', sprite: 'ball_alebrije' },
     { key: 'bg_stadium',    type: 'stage', score: 20000, label: 'Estadio',       sprite: 'bg_stadium_day'},
     { key: 'ball_luchador', type: 'ball',  score: 25000, label: 'Ball Luchador', sprite: 'ball_luchador' },
     { key: 'ball_mariachi', type: 'ball',  score: 30000, label: 'Ball Mariachi', sprite: 'ball_mariachi' },
-    { key: 'ball_maya',     type: 'ball',  score: 35000, label: 'Ball Maya',     sprite: 'ball_maya'     },
+    { key: 'ball_azteca',   type: 'ball',  score: 35000, label: 'Ball Azteca',   sprite: 'ball_azteca'   },
     { key: 'ball_legend',   type: 'ball',  score: 40000, label: 'Ball Legend',   sprite: 'ball_legend'   },
   ];
 
@@ -1194,8 +1194,11 @@ function createScenes(k, preloadedAssets) {
     makeBtn(k, t('gameover_leaderboard'), 240, 485, 280, 52, () => { cleanup(); k.go('leaderboard', { score:finalScore, mode:gameMode, newUnlocks }); }, k.rgb(100,80,200));
     makeBtn(k, t('gameover_menu'), 240, 550, 280, 52, () => { cleanup(); k.go('menu'); }, k.rgb(60,140,200));
 
-    // Share on X
-    const shareText = encodeURIComponent(`⚽ Hice ${finalScore} pts dominando el balón en La Reta. ¿Podrás superarme?`);
+    // Share on X — mention unlock if there is one
+    const unlockMention = newUnlocks.length > 0
+      ? ` ¡Y desbloqueé el balón ${newUnlocks[0].label}!`
+      : '';
+    const shareText = encodeURIComponent(`⚽ Hice ${finalScore} pts dominando el balón en La Reta.${unlockMention} ¿Podrás superarme?`);
     const shareUrl  = encodeURIComponent('https://la-reta.vercel.app');
     const tweetUrl  = `https://twitter.com/intent/tweet?text=${shareText}&url=${shareUrl}`;
     makeBtn(k, '𝕏 Compartir', 240, 615, 280, 44, () => { window.open(tweetUrl, '_blank'); }, k.rgb(0,0,0));
@@ -1432,11 +1435,11 @@ function createScenes(k, preloadedAssets) {
 
     const BALLS = [
       { key: 'ball',          sprite: 'ball',          label: 'Clásico',  score: 0     },
-      { key: 'ball_azteca',   sprite: 'ball_azteca',   label: 'Azteca',   score: 5000  },
+      { key: 'ball_maya',     sprite: 'ball_maya',     label: 'Maya',     score: 5000  },
       { key: 'ball_alebrije', sprite: 'ball_alebrije', label: 'Alebrije', score: 15000 },
       { key: 'ball_luchador', sprite: 'ball_luchador', label: 'Luchador', score: 25000 },
       { key: 'ball_mariachi', sprite: 'ball_mariachi', label: 'Mariachi', score: 30000 },
-      { key: 'ball_maya',     sprite: 'ball_maya',     label: 'Maya',     score: 35000 },
+      { key: 'ball_azteca',   sprite: 'ball_azteca',   label: 'Azteca',   score: 35000 },
       { key: 'ball_legend',   sprite: 'ball_legend',   label: 'Legend',   score: 40000 },
     ];
 
