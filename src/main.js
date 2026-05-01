@@ -67,6 +67,7 @@ function initGame(preloadedAssets) {
   k.loadSprite('ball_luchador', '/assets/Collectibles/Ball_Luchador.png');
   k.loadSprite('ball_mariachi', '/assets/Collectibles/Ball_Mariachi.png');
   k.loadSprite('ball_azteca',   '/assets/Collectibles/Ball_Azteca.png');
+  k.loadSprite('ball_maya',     '/assets/Collectibles/Ball_Maya.png');
   k.loadSprite('ball_legend',   '/assets/Collectibles/Ball_Legend.png');
 
   // Collectible stages
@@ -96,13 +97,13 @@ function createScenes(k, preloadedAssets) {
 
   // ── Unlock definitions ──
   const UNLOCK_DEFS = [
-    { key: 'ball_loteria',  type: 'ball',  score: 5000,  label: 'Ball Lotería',  sprite: 'ball_loteria'  },
+    { key: 'ball_azteca',   type: 'ball',  score: 5000,  label: 'Ball Azteca',   sprite: 'ball_azteca'   },
     { key: 'bg_city',       type: 'stage', score: 10000, label: 'Ciudad',        sprite: 'bg_city_day'   },
     { key: 'ball_alebrije', type: 'ball',  score: 15000, label: 'Ball Alebrije', sprite: 'ball_alebrije' },
     { key: 'bg_stadium',    type: 'stage', score: 20000, label: 'Estadio',       sprite: 'bg_stadium_day'},
     { key: 'ball_luchador', type: 'ball',  score: 25000, label: 'Ball Luchador', sprite: 'ball_luchador' },
     { key: 'ball_mariachi', type: 'ball',  score: 30000, label: 'Ball Mariachi', sprite: 'ball_mariachi' },
-    { key: 'ball_azteca',   type: 'ball',  score: 35000, label: 'Ball Azteca',   sprite: 'ball_azteca'   },
+    { key: 'ball_maya',     type: 'ball',  score: 35000, label: 'Ball Maya',     sprite: 'ball_maya'     },
     { key: 'ball_legend',   type: 'ball',  score: 40000, label: 'Ball Legend',   sprite: 'ball_legend'   },
   ];
 
@@ -504,14 +505,15 @@ function createScenes(k, preloadedAssets) {
         const rows = [
           { icon:'ES/EN', col:k.rgb(180,160,255), label:t('tutorial_5_lang')  },
           { icon:'⚡/🏆', col:k.rgb(255,200,80),  label:t('tutorial_5_comp')  },
+          { icon:'🎨',    col:k.rgb(255,160,200), label:t('tutorial_5_cust')  },
           { icon:'🎵/🔇', col:k.rgb(100,220,255), label:t('tutorial_5_music') },
           { icon:'🌙/☀️', col:k.rgb(180,220,255), label:t('tutorial_5_night') },
         ];
         rows.forEach((r, i) => {
-          const y = 240 + i * 110;
+          const y = 210 + i * 100;
           addObj(k.add([k.rect(70,50,{radius:12}), k.pos(70,y), k.anchor('center'), k.color(40,30,60), k.outline(2,r.col), k.z(3)]));
           addObj(k.add([k.text(r.icon,{size:18}), k.pos(70,y), k.anchor('center'), k.color(255,255,255), k.z(4)]));
-          addObj(k.add([k.text(r.label,{size:16,width:300,align:'left'}), k.pos(130,y), k.anchor('left'), k.color(230,240,255), k.z(3)]));
+          addObj(k.add([k.text(r.label,{size:15,width:300,align:'left'}), k.pos(130,y), k.anchor('left'), k.color(230,240,255), k.z(3)]));
         });
       }
     }
@@ -1106,9 +1108,11 @@ function createScenes(k, preloadedAssets) {
       const scaleX = cr.width / 480;
       const scaleY = cr.height / 854;
       // Input in kaplay coords: x=90..280 (w=190), y=314..356 (h=42)
+      const isMobile = window.innerWidth < 600;
+      const inputW = isMobile ? 130 : 60;
       const left   = Math.max(0, cr.left + 180 * scaleX);
       const top    = cr.top  + 314 * scaleY;
-      const width  = Math.min(60 * scaleX, window.innerWidth - left - 8);
+      const width  = Math.min(inputW * scaleX, window.innerWidth - left - 8);
       const height = 42 * scaleY;
       Object.assign(domInput.style, {
         position: 'fixed',
@@ -1187,7 +1191,7 @@ function createScenes(k, preloadedAssets) {
     };
 
     makeBtn(k, t('gameover_play_again'), 240, 420, 280, 52, () => { cleanup(); k.go('game'); });
-    makeBtn(k, t('gameover_leaderboard'), 240, 485, 280, 52, () => { cleanup(); k.go('leaderboard', { score:finalScore, mode:gameMode }); }, k.rgb(100,80,200));
+    makeBtn(k, t('gameover_leaderboard'), 240, 485, 280, 52, () => { cleanup(); k.go('leaderboard', { score:finalScore, mode:gameMode, newUnlocks }); }, k.rgb(100,80,200));
     makeBtn(k, t('gameover_menu'), 240, 550, 280, 52, () => { cleanup(); k.go('menu'); }, k.rgb(60,140,200));
 
     // Share on X
@@ -1215,8 +1219,9 @@ function createScenes(k, preloadedAssets) {
   // SCENE: LEADERBOARD
   // ══════════════════════════════════════════════════════════════════════════
   k.scene('leaderboard', (data) => {
-    const myScore  = data?.score;
-    const initMode = data?.mode ?? 'powerups';
+    const myScore    = data?.score;
+    const initMode   = data?.mode ?? 'powerups';
+    const newUnlocks = data?.newUnlocks ?? [];
     k.setGravity(0);
     addBg(k, 0.25);
     k.add([k.rect(460,800,{radius:18}), k.pos(240,427), k.anchor('center'), k.color(26,10,46), k.opacity(0.92), k.z(1)]);
@@ -1341,7 +1346,7 @@ function createScenes(k, preloadedAssets) {
       const goBack = () => {
         overlay.remove();
         myScore !== undefined
-          ? k.go('gameover', { score:myScore, highScore:loadHighScore(), mode:activeMode })
+          ? k.go('gameover', { score:myScore, highScore:loadHighScore(), mode:activeMode, newUnlocks })
           : k.go('menu');
       };
       backBtn.addEventListener('click', goBack);
@@ -1427,11 +1432,11 @@ function createScenes(k, preloadedAssets) {
 
     const BALLS = [
       { key: 'ball',          sprite: 'ball',          label: 'Clásico',  score: 0     },
-      { key: 'ball_loteria',  sprite: 'ball_loteria',  label: 'Lotería',  score: 5000  },
+      { key: 'ball_azteca',   sprite: 'ball_azteca',   label: 'Azteca',   score: 5000  },
       { key: 'ball_alebrije', sprite: 'ball_alebrije', label: 'Alebrije', score: 15000 },
       { key: 'ball_luchador', sprite: 'ball_luchador', label: 'Luchador', score: 25000 },
       { key: 'ball_mariachi', sprite: 'ball_mariachi', label: 'Mariachi', score: 30000 },
-      { key: 'ball_azteca',   sprite: 'ball_azteca',   label: 'Azteca',   score: 35000 },
+      { key: 'ball_maya',     sprite: 'ball_maya',     label: 'Maya',     score: 35000 },
       { key: 'ball_legend',   sprite: 'ball_legend',   label: 'Legend',   score: 40000 },
     ];
 

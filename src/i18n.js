@@ -41,6 +41,7 @@ export const i18n = {
     tutorial_5_title: 'OPCIONES DEL MENÚ',
     tutorial_5_lang:  'Cambia el idioma entre español e inglés.',
     tutorial_5_comp:  '⚡ Powerups activos  /  🏆 Modo competitivo sin powerups.',
+    tutorial_5_cust:  'Personaliza tu balón y stage desbloqueados.',
     tutorial_5_music: 'Silencia o activa la música de fondo.',
     tutorial_5_night: 'Alterna entre modo día y modo noche.',
 
@@ -124,6 +125,7 @@ export const i18n = {
     tutorial_5_title: 'MENU OPTIONS',
     tutorial_5_lang:  'Switch language between Spanish and English.',
     tutorial_5_comp:  '⚡ Powerups on  /  🏆 Competitive mode, no powerups.',
+    tutorial_5_cust:  'Customize your unlocked ball and stage.',
     tutorial_5_music: 'Mute or unmute background music.',
     tutorial_5_night: 'Toggle between day and night mode.',
 
