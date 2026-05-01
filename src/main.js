@@ -54,11 +54,28 @@ function initGame(preloadedAssets) {
 
   k.canvas.classList.add('loaded');
 
+  // Base sprites
   k.loadSprite('background_day',   '/assets/background_day.png');
   k.loadSprite('background_night', '/assets/background_night.png');
   k.loadSprite('logo',    '/assets/logo.png');
   k.loadSprite('player',  '/assets/Jugador.png');
   k.loadSprite('ball',    '/assets/ball.png');
+
+  // Collectible balls
+  k.loadSprite('ball_loteria',  '/assets/Collectibles/Ball_Loteria.png');
+  k.loadSprite('ball_alebrije', '/assets/Collectibles/Ball_Alebrije.png');
+  k.loadSprite('ball_luchador', '/assets/Collectibles/Ball_Luchador.png');
+  k.loadSprite('ball_mariachi', '/assets/Collectibles/Ball_Mariachi.png');
+  k.loadSprite('ball_azteca',   '/assets/Collectibles/Ball_Azteca.png');
+  k.loadSprite('ball_legend',   '/assets/Collectibles/Ball_Legend.png');
+
+  // Collectible stages
+  k.loadSprite('bg_city_day',      '/assets/background_City_day.png');
+  k.loadSprite('bg_city_night',    '/assets/background_City_night.png');
+  k.loadSprite('bg_stadium_day',   '/assets/background_Stadium_day.png');
+  k.loadSprite('bg_stadium_night', '/assets/background_Stadium_night.png');
+
+  // PowerUps
   k.loadSprite('pu_rebote',      '/assets/PowerUps/pu_rebote.png');
   k.loadSprite('pu_precision',   '/assets/PowerUps/pu_precision.png');
   k.loadSprite('pu_perfectzone', '/assets/PowerUps/pu_perfectzone.png');
@@ -77,24 +94,87 @@ function createScenes(k, preloadedAssets) {
   const logoData   = preloadedAssets.find(a => a.url.includes('logo'));
   const playerData = preloadedAssets.find(a => a.url.includes('Jugador'));
 
+  // ── Unlock definitions ──
+  const UNLOCK_DEFS = [
+    { key: 'ball_loteria',  type: 'ball',  score: 5000,  label: 'Ball Lotería',  sprite: 'ball_loteria'  },
+    { key: 'bg_city',       type: 'stage', score: 10000, label: 'Ciudad',        sprite: 'bg_city_day'   },
+    { key: 'ball_alebrije', type: 'ball',  score: 15000, label: 'Ball Alebrije', sprite: 'ball_alebrije' },
+    { key: 'bg_stadium',    type: 'stage', score: 20000, label: 'Estadio',       sprite: 'bg_stadium_day'},
+    { key: 'ball_luchador', type: 'ball',  score: 25000, label: 'Ball Luchador', sprite: 'ball_luchador' },
+    { key: 'ball_mariachi', type: 'ball',  score: 30000, label: 'Ball Mariachi', sprite: 'ball_mariachi' },
+    { key: 'ball_azteca',   type: 'ball',  score: 35000, label: 'Ball Azteca',   sprite: 'ball_azteca'   },
+    { key: 'ball_legend',   type: 'ball',  score: 40000, label: 'Ball Legend',   sprite: 'ball_legend'   },
+  ];
+
+  // ── Unlock persistence ──
+  const UNLOCKS_KEY  = 'lareta-unlocks';
+  const BALL_KEY     = 'lareta-equipped-ball';
+  const STAGE_KEY    = 'lareta-equipped-stage';
+
+  function loadUnlocks() {
+    try { return JSON.parse(localStorage.getItem(UNLOCKS_KEY) || '[]'); } catch { return []; }
+  }
+  function saveUnlocks(arr) {
+    try { localStorage.setItem(UNLOCKS_KEY, JSON.stringify(arr)); } catch {}
+  }
+  function isUnlocked(key) { return loadUnlocks().includes(key); }
+  function unlock(key) {
+    const arr = loadUnlocks();
+    if (!arr.includes(key)) { arr.push(key); saveUnlocks(arr); }
+  }
+
+  // Retroactive unlock check on load
+  function checkRetroactiveUnlocks() {
+    const hs = loadHighScore();
+    UNLOCK_DEFS.forEach(def => { if (hs >= def.score) unlock(def.key); });
+  }
+
+  // Check which unlocks are NEW for a given score (not previously unlocked)
+  function getNewUnlocks(score) {
+    const before = loadUnlocks();
+    const newOnes = UNLOCK_DEFS.filter(d => score >= d.score && !before.includes(d.key));
+    newOnes.forEach(d => unlock(d.key));
+    return newOnes;
+  }
+
+  function getEquippedBall()  { return localStorage.getItem(BALL_KEY)  || 'ball'; }
+  function getEquippedStage() { return localStorage.getItem(STAGE_KEY) || 'default'; }
+  function equipBall(key)  { try { localStorage.setItem(BALL_KEY, key); } catch {} }
+  function equipStage(key) { try { localStorage.setItem(STAGE_KEY, key); } catch {} }
+
+  // Run retroactive check immediately
+  checkRetroactiveUnlocks();
+
   // ── Settings (persisted across scenes) ──
   const settings = {
     sfxVolume: 0.5,
     musicVolume: 0.4,
     nightMode: false,
     language: 'es',
-    powerupsEnabled: true,   // competitive mode toggle
+    powerupsEnabled: true,
   };
 
-  const getBg = () => settings.nightMode ? 'background_night' : 'background_day';
+  // Dynamic background based on equipped stage + night mode
+  function getBg() {
+    const stage = getEquippedStage();
+    const night = settings.nightMode;
+    if (stage === 'bg_city')    return night ? 'bg_city_night'    : 'bg_city_day';
+    if (stage === 'bg_stadium') return night ? 'bg_stadium_night' : 'bg_stadium_day';
+    return night ? 'background_night' : 'background_day';
+  }
 
   const t = (key) => {
     const val = i18n[settings.language][key];
     return typeof val === 'function' ? val : (val || key);
   };
 
-  // ── Music ──
-  const TRACKS = ['/assets/music_day.mp3', '/assets/music_night.mp3'];
+  // ── Music — 4 tracks alternating ──
+  const TRACKS = [
+    '/assets/Dominio Del Balón.mp3',
+    '/assets/Jogo de Bola.mp3',
+    '/assets/Viva Futebol.mp3',
+    '/assets/music_day.mp3',
+  ];
   let trackIndex = 0;
   let bgMusic = null;
   let musicStarted = false;
@@ -120,6 +200,8 @@ function createScenes(k, preloadedAssets) {
       bgMusic.addEventListener('ended', () => { bgMusic = null; musicStarted = false; startMusic(); }, { once: true });
     } catch (e) { bgMusic = null; musicStarted = false; }
   }
+
+  function nextSong() { startMusic(); }  // skip to next track
 
   function stopMusic() {
     if (bgMusic) { try { bgMusic.pause(); } catch {} bgMusic.src = ''; bgMusic = null; }
@@ -280,6 +362,12 @@ function createScenes(k, preloadedAssets) {
     k.add([k.text(settings.powerupsEnabled ? '⚡' : '🏆', {size:26}), k.pos(120,30), k.anchor('center'), k.z(101)]);
     compBtn.onClick(() => { settings.powerupsEnabled = !settings.powerupsEnabled; k.go('menu'); });
     compBtn.onHover(() => k.setCursor('pointer')); compBtn.onHoverEnd(() => k.setCursor('default'));
+
+    // Customize button 🎨 — opens ball/stage picker
+    const custBtn = k.add([k.rect(50,50,{radius:25}), k.pos(180,30), k.anchor('center'), k.color(80,60,120), k.outline(2,k.rgb(180,160,220)), k.area(), k.z(100)]);
+    k.add([k.text('🎨',{size:26}), k.pos(180,30), k.anchor('center'), k.z(101)]);
+    custBtn.onClick(() => k.go('customize'));
+    custBtn.onHover(() => k.setCursor('pointer')); custBtn.onHoverEnd(() => k.setCursor('default'));
 
     // Logo — ~280px wide
     const logoY = 160;
@@ -487,8 +575,9 @@ function createScenes(k, preloadedAssets) {
 
     function diffMult() { return 1 + elapsed * 0.01; }
 
-    // ── Ball ──
-    const ballObj = k.add([k.sprite('ball'), k.pos(ballX, ballY), k.anchor('center'), k.scale(BALL_SCALE), k.z(20)]);
+    // ── Ball — uses equipped ball ──
+    const equippedBallKey = getEquippedBall();
+    const ballObj = k.add([k.sprite(equippedBallKey), k.pos(ballX, ballY), k.anchor('center'), k.scale(BALL_SCALE), k.z(20)]);
 
     // ── HUD ──
     k.add([k.rect(220,110,{radius:12}), k.pos(10,10), k.color(0,0,0), k.opacity(0.65), k.z(99)]);
@@ -763,7 +852,13 @@ function createScenes(k, preloadedAssets) {
       spawnParticles(ballX, ballY, k.rgb(255,80,80));
       stopMusic();
       saveHighScore(score);
-      k.wait(0.6, () => k.go('gameover', { score, highScore: loadHighScore(), mode: settings.powerupsEnabled ? 'powerups' : 'competitive' }));
+      const newUnlocks = getNewUnlocks(score);
+      k.wait(0.6, () => k.go('gameover', {
+        score,
+        highScore: loadHighScore(),
+        mode: settings.powerupsEnabled ? 'powerups' : 'competitive',
+        newUnlocks,
+      }));
     }
 
     // ── Input ──
@@ -949,6 +1044,13 @@ function createScenes(k, preloadedAssets) {
       volRow('SFX', ()=>settings.sfxVolume, ()=>{settings.sfxVolume=Math.max(0,settings.sfxVolume-0.1);}, ()=>{settings.sfxVolume=Math.min(1,settings.sfxVolume+0.1);}, ()=>{settings.sfxVolume=0;}, 370);
       volRow('🎵 Música', ()=>settings.musicVolume, ()=>setMusicVolume(settings.musicVolume-0.1), ()=>setMusicVolume(settings.musicVolume+0.1), ()=>setMusicVolume(0), 430);
 
+      // Next song button
+      add(k.add([k.text('⏭ Next',{size:15}), k.pos(90,470), k.anchor('center'), k.color(200,180,255), k.z(201)]));
+      const nextBtn = add(k.add([k.rect(80,36,{radius:8}), k.pos(230,470), k.anchor('center'), k.color(80,60,120), k.area(), k.z(201)]));
+      add(k.add([k.text('⏭',{size:22}), k.pos(230,470), k.anchor('center'), k.z(202)]));
+      nextBtn.onClick(() => nextSong());
+      nextBtn.onHover(()=>k.setCursor('pointer')); nextBtn.onHoverEnd(()=>k.setCursor('default'));
+
       const cb = add(k.add([k.rect(160,44,{radius:12}), k.pos(240,530), k.anchor('center'), k.color(220,60,60), k.outline(3,k.rgb(255,220,80)), k.area(), k.z(201)]));
       add(k.add([k.text(t('tutorial_back'),{size:20}), k.pos(240,530), k.anchor('center'), k.color(255,255,255), k.z(202)]));
       cb.onClick(close); cb.onHover(()=>k.setCursor('pointer')); cb.onHoverEnd(()=>k.setCursor('default'));
@@ -970,6 +1072,7 @@ function createScenes(k, preloadedAssets) {
     const finalScore = data?.score ?? 0;
     const highScore  = data?.highScore ?? loadHighScore();
     const gameMode   = data?.mode ?? 'powerups';
+    const newUnlocks = data?.newUnlocks ?? [];
     k.setGravity(0);
     addBg(k, 0.25);
     k.add([k.rect(460,820,{radius:18}), k.pos(240,427), k.anchor('center'), k.color(26,10,46), k.opacity(0.92), k.z(1)]);
@@ -985,7 +1088,7 @@ function createScenes(k, preloadedAssets) {
     const prev = document.getElementById('lr-name-input');
     if (prev) prev.remove();
 
-    // ── Real visible DOM input — iOS requires focus() in a native touch handler ──
+    // ── Real visible DOM input — sized to match the original nameBox ──
     const domInput = document.createElement('input');
     domInput.id = 'lr-name-input';
     domInput.type = 'text';
@@ -996,25 +1099,27 @@ function createScenes(k, preloadedAssets) {
     domInput.spellcheck = false;
     domInput.placeholder = t('gameover_input_placeholder');
 
-    // Position it over the kaplay canvas at the correct spot (y≈335 in 480×854 space)
+    // nameBox: center x=200, width=280, center y=335, height=42
+    // So left edge = 200 - 140 = 60, right edge = 200 + 140 = 340
     function positionInput() {
       const cr = k.canvas.getBoundingClientRect();
       const scaleX = cr.width / 480;
       const scaleY = cr.height / 854;
-      const inputW = 280 * scaleX;
-      const inputH = 44 * scaleY;
-      const inputX = cr.left + (200 - 140) * scaleX;  // center x=200, width=280
-      const inputY = cr.top  + (335 - 22) * scaleY;   // center y=335, height=44
+      // Input in kaplay coords: x=90..280 (w=190), y=314..356 (h=42)
+      const left   = Math.max(0, cr.left + 180 * scaleX);
+      const top    = cr.top  + 314 * scaleY;
+      const width  = Math.min(60 * scaleX, window.innerWidth - left - 8);
+      const height = 42 * scaleY;
       Object.assign(domInput.style, {
         position: 'fixed',
-        left: `${inputX}px`,
-        top:  `${inputY}px`,
-        width: `${inputW}px`,
-        height: `${inputH}px`,
-        fontSize: `${Math.round(18 * scaleY)}px`,
-        padding: '0 10px',
+        left:   `${left}px`,
+        top:    `${top}px`,
+        width:  `${width}px`,
+        height: `${height}px`,
+        fontSize: `${Math.round(15 * scaleY)}px`,
+        padding: '0 6px',
         border: '2px solid rgb(140,100,220)',
-        borderRadius: '12px',
+        borderRadius: '10px',
         background: 'rgba(40,30,60,0.95)',
         color: '#e0e8ff',
         outline: 'none',
@@ -1084,6 +1189,19 @@ function createScenes(k, preloadedAssets) {
     makeBtn(k, t('gameover_play_again'), 240, 420, 280, 52, () => { cleanup(); k.go('game'); });
     makeBtn(k, t('gameover_leaderboard'), 240, 485, 280, 52, () => { cleanup(); k.go('leaderboard', { score:finalScore, mode:gameMode }); }, k.rgb(100,80,200));
     makeBtn(k, t('gameover_menu'), 240, 550, 280, 52, () => { cleanup(); k.go('menu'); }, k.rgb(60,140,200));
+
+    // Share on X
+    const shareText = encodeURIComponent(`⚽ Hice ${finalScore} pts dominando el balón en La Reta. ¿Podrás superarme?`);
+    const shareUrl  = encodeURIComponent('https://la-reta.vercel.app');
+    const tweetUrl  = `https://twitter.com/intent/tweet?text=${shareText}&url=${shareUrl}`;
+    makeBtn(k, '𝕏 Compartir', 240, 615, 280, 44, () => { window.open(tweetUrl, '_blank'); }, k.rgb(0,0,0));
+
+    // Unlocks button — only if there are new unlocks
+    if (newUnlocks.length > 0) {
+      makeBtn(k, `🎁 ¡${newUnlocks.length} NUEVO${newUnlocks.length>1?'S':''}!`, 240, 670, 280, 48,
+        () => { cleanup(); k.go('unlock', { unlocks: newUnlocks, from: 'gameover', score: finalScore, mode: gameMode }); },
+        k.rgb(200,140,0));
+    }
 
     const back = k.add([k.rect(110,36,{radius:12}), k.pos(70,60), k.anchor('center'), k.color(220,60,60), k.outline(3,k.rgb(255,220,80)), k.area(), k.z(20)]);
     k.add([k.text(t('gameover_menu'),{size:16}), k.pos(70,60), k.anchor('center'), k.color(255,255,255), k.z(21)]);
@@ -1233,6 +1351,165 @@ function createScenes(k, preloadedAssets) {
 
     rebuildOverlay();
     k.onSceneLeave(() => { const el = document.getElementById('lr-overlay'); if (el) el.remove(); });
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // SCENE: UNLOCK
+  // ══════════════════════════════════════════════════════════════════════════
+  k.scene('unlock', (data) => {
+    const unlocks = data?.unlocks ?? [];
+    const from    = data?.from ?? 'gameover';
+    const score   = data?.score;
+    const mode    = data?.mode;
+    let idx = 0;
+
+    k.setGravity(0);
+
+    function showUnlock(i) {
+      k.destroyAll('unlockobj');
+      if (i >= unlocks.length) {
+        // Done — back to gameover
+        k.go('gameover', { score, highScore: loadHighScore(), mode, newUnlocks: [] });
+        return;
+      }
+      const def = unlocks[i];
+      const add = (obj) => { obj.tags = obj.tags || []; obj.tags.push('unlockobj'); return obj; };
+
+      // Dark overlay
+      k.add([k.rect(480,854), k.pos(0,0), k.color(10,5,20), k.opacity(0.92), k.z(0), 'unlockobj']);
+
+      // Glow ring
+      const ring = k.add([k.circle(160), k.pos(240,340), k.anchor('center'), k.color(255,200,0), k.opacity(0.15), k.z(1), 'unlockobj', { t:0 }]);
+      ring.onUpdate(() => { ring.t += k.dt(); ring.opacity = 0.1 + Math.sin(ring.t*2)*0.08; });
+
+      // Asset
+      k.add([k.sprite(def.sprite), k.pos(240,340), k.anchor('center'), k.scale(120/1024), k.z(2), 'unlockobj']);
+
+      // Labels
+      k.add([k.text('🎁 ¡DESBLOQUEADO!', {size:28}), k.pos(240,160), k.anchor('center'), k.color(255,220,0), k.z(3), 'unlockobj']);
+      k.add([k.text(def.label, {size:32}), k.pos(240,500), k.anchor('center'), k.color(255,255,255), k.z(3), 'unlockobj']);
+      k.add([k.text(def.type === 'ball' ? '⚽ Nuevo balón' : '🏟 Nuevo stage', {size:18}), k.pos(240,545), k.anchor('center'), k.color(200,200,200), k.z(3), 'unlockobj']);
+
+      // APLICAR button
+      makeBtn(k, '✅ APLICAR', 240, 650, 240, 56, () => {
+        if (def.type === 'ball')  equipBall(def.key);
+        if (def.type === 'stage') equipStage(def.key);
+        idx++;
+        showUnlock(idx);
+      }, k.rgb(60,180,80));
+
+      // DESPUÉS button
+      makeBtn(k, 'DESPUÉS', 240, 720, 180, 42, () => {
+        idx++;
+        showUnlock(idx);
+      }, k.rgb(80,60,120));
+
+      // Counter if multiple
+      if (unlocks.length > 1) {
+        k.add([k.text(`${i+1}/${unlocks.length}`, {size:16}), k.pos(240,790), k.anchor('center'), k.color(255,255,255), k.opacity(0.5), k.z(3), 'unlockobj']);
+      }
+    }
+
+    showUnlock(0);
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // SCENE: CUSTOMIZE
+  // ══════════════════════════════════════════════════════════════════════════
+  k.scene('customize', () => {
+    k.setGravity(0);
+    addBg(k, 0.3);
+    k.add([k.rect(460,820,{radius:18}), k.pos(240,427), k.anchor('center'), k.color(26,10,46), k.opacity(0.92), k.z(1)]);
+    k.add([k.text('🎨 PERSONALIZAR', {size:24}), k.pos(240,60), k.anchor('center'), k.color(255,220,80), k.z(2)]);
+
+    const equippedBall  = getEquippedBall();
+    const equippedStage = getEquippedStage();
+
+    const BALLS = [
+      { key: 'ball',          sprite: 'ball',          label: 'Clásico',  score: 0     },
+      { key: 'ball_loteria',  sprite: 'ball_loteria',  label: 'Lotería',  score: 5000  },
+      { key: 'ball_alebrije', sprite: 'ball_alebrije', label: 'Alebrije', score: 15000 },
+      { key: 'ball_luchador', sprite: 'ball_luchador', label: 'Luchador', score: 25000 },
+      { key: 'ball_mariachi', sprite: 'ball_mariachi', label: 'Mariachi', score: 30000 },
+      { key: 'ball_azteca',   sprite: 'ball_azteca',   label: 'Azteca',   score: 35000 },
+      { key: 'ball_legend',   sprite: 'ball_legend',   label: 'Legend',   score: 40000 },
+    ];
+
+    const STAGES = [
+      { key: 'default',    daySprite: 'background_day',  label: 'Cancha',  score: 0     },
+      { key: 'bg_city',    daySprite: 'bg_city_day',     label: 'Ciudad',  score: 10000 },
+      { key: 'bg_stadium', daySprite: 'bg_stadium_day',  label: 'Estadio', score: 20000 },
+    ];
+
+    // ── BALLS — 4 per row ──
+    k.add([k.text('⚽ BALONES', {size:16}), k.pos(24,110), k.anchor('left'), k.color(180,180,255), k.z(2)]);
+
+    const CELL = 90;
+    const COLS = 4;
+    const BALL_START_Y = 165;
+    const BALL_GAP = 110;
+
+    BALLS.forEach((b, i) => {
+      const col = i % COLS;
+      const row = Math.floor(i / COLS);
+      const x = 51 + col * (CELL + 6);
+      const y = BALL_START_Y + row * BALL_GAP;
+      const unlocked = b.score === 0 || isUnlocked(b.key);
+      const isEq = equippedBall === b.key;
+
+      if (unlocked) {
+        const bg = k.add([k.rect(CELL,CELL,{radius:10}), k.pos(x,y), k.anchor('center'),
+          k.color(isEq?180:35, isEq?140:28, isEq?50:55),
+          k.outline(isEq?3:1, isEq?k.rgb(255,220,80):k.rgb(70,55,90)),
+          k.area(), k.z(3)]);
+        k.add([k.sprite(b.sprite), k.pos(x,y-12), k.anchor('center'), k.scale(52/1024), k.z(4)]);
+        k.add([k.text(b.label,{size:11,width:CELL-4,align:'center'}), k.pos(x,y+36), k.anchor('center'), k.color(255,255,255), k.z(4)]);
+        if (isEq) k.add([k.text('✓',{size:13}), k.pos(x+36,y-36), k.anchor('center'), k.color(255,220,80), k.z(5)]);
+        bg.onClick(() => { equipBall(b.key); k.go('customize'); });
+        bg.onHover(()=>k.setCursor('pointer')); bg.onHoverEnd(()=>k.setCursor('default'));
+      } else {
+        k.add([k.rect(CELL,CELL,{radius:10}), k.pos(x,y), k.anchor('center'), k.color(18,13,28), k.outline(1,k.rgb(45,35,65)), k.z(3)]);
+        k.add([k.sprite(b.sprite), k.pos(x,y-12), k.anchor('center'), k.scale(52/1024), k.color(0,0,0), k.z(4)]);
+        k.add([k.text(`🔒\n${b.score/1000}k`,{size:11,align:'center'}), k.pos(x,y+10), k.anchor('center'), k.color(110,90,130), k.z(5)]);
+      }
+    });
+
+    // 2 rows of balls: last row ends at BALL_START_Y + 1*BALL_GAP = 275
+    const STAGE_LABEL_Y = 395;
+    const STAGE_Y       = 470;
+    const STAGE_W = 130, STAGE_H = 78;
+
+    k.add([k.text('🏟 STAGES', {size:16}), k.pos(24, STAGE_LABEL_Y), k.anchor('left'), k.color(180,180,255), k.z(2)]);
+
+    STAGES.forEach((s, i) => {
+      const x = 75 + i * 145;
+      const y = STAGE_Y;
+      const unlocked = s.score === 0 || isUnlocked(s.key);
+      const isEq = equippedStage === s.key;
+
+      if (unlocked) {
+        const bg = k.add([k.rect(STAGE_W,STAGE_H,{radius:10}), k.pos(x,y), k.anchor('center'),
+          k.color(isEq?30:18, isEq?70:28, isEq?110:55),
+          k.outline(isEq?3:1, isEq?k.rgb(255,220,80):k.rgb(70,55,90)),
+          k.area(), k.z(3)]);
+        k.add([k.sprite(s.daySprite), k.pos(x,y), k.anchor('center'), k.scale(STAGE_W/1536), k.z(4)]);
+        k.add([k.rect(STAGE_W,STAGE_H,{radius:10}), k.pos(x,y), k.anchor('center'), k.color(0,0,0), k.opacity(0.45), k.z(5)]);
+        k.add([k.text(s.label,{size:13,align:'center'}), k.pos(x,y), k.anchor('center'), k.color(255,255,255), k.z(6)]);
+        if (isEq) k.add([k.text('✓',{size:13}), k.pos(x+52,y-28), k.anchor('center'), k.color(255,220,80), k.z(7)]);
+        bg.onClick(() => { equipStage(s.key); k.go('customize'); });
+        bg.onHover(()=>k.setCursor('pointer')); bg.onHoverEnd(()=>k.setCursor('default'));
+      } else {
+        k.add([k.rect(STAGE_W,STAGE_H,{radius:10}), k.pos(x,y), k.anchor('center'), k.color(18,13,28), k.outline(1,k.rgb(45,35,65)), k.z(3)]);
+        k.add([k.sprite(s.daySprite), k.pos(x,y), k.anchor('center'), k.scale(STAGE_W/1536), k.color(0,0,0), k.z(4)]);
+        k.add([k.text(`🔒 ${s.score/1000}k`,{size:12,align:'center'}), k.pos(x,y), k.anchor('center'), k.color(110,90,130), k.z(5)]);
+      }
+    });
+
+    // Back button — well below stages
+    const backBtn = k.add([k.rect(200,48,{radius:14}), k.pos(240,600), k.anchor('center'), k.color(220,60,60), k.outline(3,k.rgb(255,220,80)), k.area(), k.z(10)]);
+    k.add([k.text(t('tutorial_back'),{size:22}), k.pos(240,600), k.anchor('center'), k.color(255,255,255), k.z(11)]);
+    backBtn.onClick(() => k.go('menu'));
+    backBtn.onHover(()=>k.setCursor('pointer')); backBtn.onHoverEnd(()=>k.setCursor('default'));
   });
 
 } // end createScenes
